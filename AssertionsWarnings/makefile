@@ -1,4 +1,4 @@
-.PHONY: test-guile test-gauche test-kawa test-chibi
+.PHONY: test-guile test-gauche test-kawa test-chibi test-chicken
 
 test-guile:
 	guile -L . --r7rs assertions-test.scm
