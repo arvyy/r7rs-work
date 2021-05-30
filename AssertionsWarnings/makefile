@@ -18,3 +18,4 @@ test-chicken:
 	csc -R r7rs -X r7rs -sJ -o assertions.so assertions.sld
 	csi -I . -R r7rs -s assertions-test.scm
 	rm assertions.so
+	rm assertions.import.scm
