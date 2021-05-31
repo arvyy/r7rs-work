@@ -108,8 +108,8 @@
     ;;shouldn't get here
     (test-assert #f)))
 
- (when-let ((a 1)
-            (b #f))
+ (when-let* ((a 1)
+             (b #f))
            ;; shouldn't get here
            (test-assert #f)))
 
