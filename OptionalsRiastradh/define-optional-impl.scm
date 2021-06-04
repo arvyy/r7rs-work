@@ -106,9 +106,15 @@
     ;; ============================
     ;; step 5: put everything together
     ;; ============================
-    ;; treat first case of lambda-case specially to attach rest argument
-    ((_ 5 name rest (body ...) ((lambda-case-arg ...) lambda-case-clause* ...) ((param ...) (param* ...) ...) (fn-formal ...))
+    ;; no rest formal param
+    ((_ 5 name () (body ...) (lambda-case-clause ...) ((param ...) ...) (fn-formal ...))
      (define name (let ((fn (lambda (fn-formal ... . rest) body ...)))
                     (case-lambda
-                      ((lambda-case-arg ... . rest) (apply fn param ... rest))
-                      (lambda-case-clause* (fn param* ...)) ...))))))
+                      (lambda-case-clause (fn param ...)) ...))))
+
+    ;; rest formal param exists - treat first case of lambda-case specially to attach rest argument
+    ((_ 5 name rest (body ...) ((lambda-case-arg ...) lambda-case-clause* ...) ((param ...) (param* ...) ...) (fn-formal ...))
+     (define name (let ((fn (lambda (fn-formal ... . rest) body ...)))
+                     (case-lambda
+                       ((lambda-case-arg ... . rest) (apply fn param ... rest))
+                       (lambda-case-clause* (fn param* ...)) ...))))))
