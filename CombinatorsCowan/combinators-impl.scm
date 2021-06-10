@@ -6,10 +6,13 @@
   (lambda (obj)
     (not (proc obj))))
 
-;;TODO flip identical?
 (define (swap proc)
-  (lambda (obj1 obj2)
-    (proc obj2 obj1)))
+  (lambda (obj1 obj2 . rest)
+    (apply proc obj2 obj1 rest)))
+
+(define (flip proc)
+  (lambda args
+    (apply proc (reverse args))))
 
 (define (on-left proc)
   (lambda (obj1 obj2)

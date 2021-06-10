@@ -6,7 +6,7 @@
         constantly
         complement
         swap
-        ;flip
+        flip
         on-left
         on-right
         conjoin

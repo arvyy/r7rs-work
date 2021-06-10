@@ -50,8 +50,16 @@
 (test-group
  "swap"
 
- (test-equal '(2 1)
-   ((swap list) 1 2)))
+ (test-equal '(2 1 3 4)
+   ((swap list) 1 2 3 4)))
+
+
+
+(test-group
+ "flip"
+
+ (test-equal '(4 3 2 1)
+   ((flip list) 1 2 3 4)))
 
 
 
