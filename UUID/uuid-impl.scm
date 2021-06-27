@@ -187,12 +187,12 @@
     (make-uuid 5 data)))
 
 (define dns-namespace-uuid (string->uuid "6ba7b810-9dad-11d1-80b4-00c04fd430c8"))
-(define url-namepsace-uuid (string->uuid "6ba7b811-9dad-11d1-80b4-00c04fd430c8"))
-(define oid-namepsace-uuid (string->uuid "6ba7b812-9dad-11d1-80b4-00c04fd430c8"))
-(define x500-namepsace-uuid (string->uuid "6ba7b814-9dad-11d1-80b4-00c04fd430c8"))
+(define url-namespace-uuid (string->uuid "6ba7b811-9dad-11d1-80b4-00c04fd430c8"))
+(define oid-namespace-uuid (string->uuid "6ba7b812-9dad-11d1-80b4-00c04fd430c8"))
+(define x500-namespace-uuid (string->uuid "6ba7b814-9dad-11d1-80b4-00c04fd430c8"))
 (define nil-uuid (string->uuid "00000000-0000-0000-0000-000000000000"))
 
-(define (uuid-comparator)
+(define uuid-comparator
   (let ((bytevector-comparator (make-vector-comparator
                                 (make-comparator exact-integer? = < number-hash)
                                 bytevector?

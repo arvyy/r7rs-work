@@ -14,9 +14,9 @@
         make-random-uuid
         make-relative-uuid
         dns-namespace-uuid
-        url-namepsace-uuid
-        oid-namepsace-uuid
-        x500-namepsace-uuid
+        url-namespace-uuid
+        oid-namespace-uuid
+        x500-namespace-uuid
         nil-uuid
 
         uuid->string
