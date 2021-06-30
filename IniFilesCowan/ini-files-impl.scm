@@ -137,6 +137,6 @@
                                          (set! current-section section)
                                          (loop)))
             ((key-value trimmed-line) => (lambda (key-value-pair)
-                                           (values current-section
-                                                   (car key-value-pair)
-                                                   (cdr key-value-pair)))))))))))
+                                           (list current-section
+                                                 (car key-value-pair)
+                                                 (cdr key-value-pair)))))))))))

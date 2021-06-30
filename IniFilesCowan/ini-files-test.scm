@@ -43,13 +43,11 @@
 
  (define (read-to-list generator)
    (let loop ((lst '()))
-     (define entry-lst (call-with-values generator list))
+     (define entry-lst (generator))
      (cond
-      ((and (= 1 (length entry-lst))
-            (eof-object? (car entry-lst)))
+      ((eof-object? entry-lst)
        (reverse lst))
-      ((= 3 (length entry-lst))
-       (loop (cons entry-lst lst))))))
+      (else (loop (cons entry-lst lst))))))
 
  (define source "key1 = value1\n
 ; comment\n
