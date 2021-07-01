@@ -4,7 +4,7 @@
   (version uuid-version)
   (data uuid-data))
 
-(define rand-max (exact (expt 2 122)))
+(define rand-max (exact (expt 2 128)))
 (define rand-src (let ((src (make-random-source)))
                    (random-source-randomize! src)
                    src))
@@ -12,27 +12,21 @@
 (define (make-random-uuid)
   (let* ((rand (rand-int rand-max))
          (bits (bits->vector rand))
-         (bits (if (= 122 (vector-length bits))
+         (bits (if (= 128 (vector-length bits))
                    bits
-                   (vector-append bits (make-vector (- 122 (vector-length bits)) #f))))
-         (data-vec (make-vector 128 #f)))
-  ;; Set the four most significant bits (bits 12 through 15) of the
-  ;; time_hi_and_version field to the 4-bit version number
-  (vector-set! data-vec (+ 48 0) #f)
-  (vector-set! data-vec (+ 48 1) #t)
-  (vector-set! data-vec (+ 48 2) #f)
-  (vector-set! data-vec (+ 48 3) #f)
+                   (vector-append bits (make-vector (- 128 (vector-length bits)) #f))))
+         (data-vec bits))
+    ;; Set the four most significant bits (bits 12 through 15) of the
+    ;; time_hi_and_version field to the 4-bit version number
+    (vector-set! data-vec (+ 48 0) #f)
+    (vector-set! data-vec (+ 48 1) #t)
+    (vector-set! data-vec (+ 48 2) #f)
+    (vector-set! data-vec (+ 48 3) #f)
 
-  ;; Set the two most significant bits (bits 6 and 7) of the
-  ;; clock_seq_hi_and_reserved to zero and one, respectively.
-  (vector-set! data-vec (+ 64 0) #t)
-  (vector-set! data-vec (+ 64 1) #f)
-
-    ;; Set all the other bits to randomly (or pseudo-randomly) chosen
-    ;; values.
-    (vector-copy! data-vec 0 bits 0 (+ 48 12))
-    (vector-copy! data-vec (+ 48 16) bits (+ 48 12) (+ 64 2))
-    (vector-copy! data-vec (+ 64 8) bits (+ 64 2) 122)
+    ;; Set the two most significant bits (bits 6 and 7) of the
+    ;; clock_seq_hi_and_reserved to zero and one, respectively.
+    (vector-set! data-vec (+ 64 0) #t)
+    (vector-set! data-vec (+ 64 1) #f)
 
     (let ((data (apply bytevector
                        (map
