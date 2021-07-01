@@ -1,4 +1,4 @@
-(define-record-type <restart>
+(define-record-type <restarter>
   (make-restarter tag description invoker)
   restarter?
   (tag restarter-tag)
@@ -6,7 +6,7 @@
   (invoker restarter-invoker))
 
 (define (restart restarter . args)
-  (apply (restarter-invoker) args))
+  (apply (restarter-invoker restarter) args))
 
 (define ambient-restarters (make-parameter '()))
 
@@ -76,7 +76,7 @@
 (define (restart-interactively restarters)
   ((interactor) (collect-restarters restarters)))
 
-(define (default-interator restarters)
+(define (default-interactor restarters)
 
   (define l (length restarters))
 
@@ -89,7 +89,8 @@
        (display ". ")
        (display (restarter-tag r))
        (display " ")
-       (display (car (restarter-description r))))
+       (display (car (restarter-description r)))
+       (newline))
      restarters
      (iota l)))
 
@@ -120,4 +121,4 @@
          (params (read-restarter-params restarter)))
     (apply restart restarter params)))
 
-(define interactor (make-parameter default-interator))
+(define interactor (make-parameter default-interactor))
