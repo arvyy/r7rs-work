@@ -1,15 +1,10 @@
-.PHONY: test-guile test-gauche test-kawa test-chibi test-chicken
+.PHONY: test-guile test-gauche test-chibi test-chicken
 
 test-guile:
 	guile -L . --r7rs iteration-cl-test.scm
 
 test-gauche:
 	gosh -I . iteration-cl-test.scm
-
-test-kawa:
-	cp iteration-cl.sld iteration-cl.scm
-	kawa iteration-cl-test.scm
-	rm iteration-cl.scm
 
 test-chibi:
 	chibi-scheme iteration-cl-test.scm
@@ -19,3 +14,5 @@ test-chicken:
 	csi -I . -R r7rs -s iteration-cl-test.scm
 	rm iteration-cl.so
 	rm iteration-cl.import.scm
+
+# Kawa fails to run due to limitation for reentrant continuations
