@@ -4,9 +4,7 @@
   (message path-error-message)) ;; TODO expose message field?
 
 (define (perror message)
-  (raise ;(path-error message)
-         message
-         ))
+  (raise (path-error message)))
 
 ;; returns list, where each element is an integer (count of separator instances) or a string
 ;; raise error on empty input
@@ -63,7 +61,6 @@
         (cons after-drive-component (cdr lst))))
   (values drive rest))
 
-;;TODO escapes?
 (define (parse-pathname posix str)
   (define separator (if posix #\/ #\\))
   (let*-values
@@ -130,11 +127,12 @@
   (case-lambda
     ((path) (posix-pathname path (lambda (drive) (perror "No drive mapper given"))))
     ((path drive-mapper)
-     (if (equal? "" (car path))
-         (string-join path "/")
-         (string-join (cons (drive-mapper (car path))
-                            (cdr path))
-                      "/")))))
+     (define drive (if (equal? "" (car path))
+                       ""
+                       (drive-mapper (car path))))
+     (define root (cadr path))
+     (define components (string-join (cddr path) "/"))
+     (string-append drive root components))))
 
 (define (windows-pathname path)
   (define (convert-slash char)
@@ -149,10 +147,9 @@
     (string-map
      convert-slash
      (cadr path)))
-  (string-join (append (list drive root) (cddr path))
-               "\\"))
+  (string-append drive root (string-join (cddr path) "\\")))
 
-(define (path-name path)
+(define (pathname path)
   (define windows?
     (find
      (lambda (feature)
@@ -172,9 +169,9 @@
   (when (equal? "" (cadr path))
     (perror "Cannot convert not-absolute path to file uri"))
   (cond
-   (unc? (string-append "file:" (string-join path "/")))
-   (drive-defined? (string-append "file:///" (string-join (cdr path) "/")))
-   (else (string-append "file://" (string-join (cdr path) "/")))))
+   (unc? (string-append "file:" (car path) "/" (string-join (cddr path) "/")))
+   (drive-defined? (string-append "file:///" (car path) "/" (string-join (cddr path) "/")))
+   (else (string-append "file:///" (string-join (cddr path) "/")))))
 
 (define reserved-names
   (append
@@ -213,7 +210,9 @@
 (define (path-reserved? path)
   (fold (lambda (el acc)
           (or acc
-              (reserved-component? el)))
+              (and
+               (not (equal? "" el))
+               (reserved-component? el))))
         #f
         path))
 
@@ -252,10 +251,10 @@
   (define l (string-length str))
   (define period-index (index-of str #\.))
   (if period-index
-      (and (portable-name (substring 0 period-index) 8)
+      (and (portable-name (substring str 0 period-index) 8)
            (> l (+ 1 period-index))
-           (portable-name (substring (+ 1 period-index) 3)))
-      (portable-name str)))
+           (portable-name (substring str (+ 1 period-index) l) 3))
+      (portable-name str 8)))
 
 (define (portable-foldername str)
   (portable-name str 8))
@@ -277,8 +276,8 @@
   (if (null? (cddr path))
       path
       (append (list (car path)
-                    (cadr path)
-                    (drop-right (cddr path) 1)))))
+                    (cadr path))
+              (drop-right (cddr path) 1))))
 
 (define (path-filename path)
   (if (null? (cddr path))
