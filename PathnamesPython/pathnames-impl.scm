@@ -387,7 +387,7 @@
     (let loop ((chars chars)
                (res '()))
       (cond
-       ((null? chars) (perror 'unexpected-eof))
+       ((null? chars) (perror "Unexpected EOF while parsing [...] glob"))
        ((equal? (car chars) #\])
         (values res (cdr chars)))
        (else (loop (cdr chars)
