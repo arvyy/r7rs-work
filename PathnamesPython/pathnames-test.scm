@@ -253,6 +253,15 @@
                  '("" "" "foo" "bar")))
 
  (test-assert
+     (path-match '("" "" "Foo" "Bar")
+                 '("" "" "foo" "bar")
+                 #t))
+ (test-assert
+     (not (path-match '("" "" "Foo" "Bar")
+                      '("" "" "foo" "bar")
+                      #f)))
+
+ (test-assert
      (path-match '("" "" "foo" "bar")
                  '("" "" "bar")))
 
@@ -275,6 +284,11 @@
  (test-assert
      (path-match '("" "" "foo" "bar")
                  '("" "" "foo" "b[ar][ar]")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bAr")
+                 '("" "" "foo" "b[ar][ar]")
+                 #t))
 
  (test-assert
      (path-match '("" "" "foo" "bar")
