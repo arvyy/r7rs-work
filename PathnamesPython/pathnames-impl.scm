@@ -412,7 +412,7 @@
                        (match-chars rest-chars)
                      (pick-until-closing-bracket (cdr chars)))
                    (loop (cons match-chars pat-lst/rev)
-                           rest-chars)))
+                         rest-chars)))
                 (else (loop (cons char pat-lst/rev)
                             (cdr chars)))))))))
 
@@ -449,7 +449,7 @@
                                       (length chars))))
      ((char? (car pat-lst))
       (if (char-equal? (car chars)
-                  (car pat-lst))
+                       (car pat-lst))
           (match? (cdr chars)
                   (cdr pat-lst))
           #f))

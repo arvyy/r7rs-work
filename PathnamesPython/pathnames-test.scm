@@ -298,7 +298,11 @@
 
  (test-assert
      (path-match '("" "" "foo" "baaaaaabb")
-                 '("" "" "foo" "b*b*b"))))
+                 '("" "" "foo" "b*b*b")))
+
+ (test-assert
+     (not (path-match '("" "" "foo" "baaaaaab")
+                      '("" "" "foo" "b*b*b")))))
 
 (test-group
  "path-relative-to"
