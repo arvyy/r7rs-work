@@ -86,6 +86,16 @@
      "//foo/bar/baz"
    (posix-pathname '("//foo/bar" "/" "baz") (lambda (drive) drive)))
 
+ (call/cc
+  (lambda (k)
+    (with-exception-handler
+        (lambda (err)
+          (test-assert (path-error? err))
+          (k #t))
+      (lambda ()
+        (posix-pathname '("" "/" "foo/bar"))
+        (test-assert #f)))))
+
  (test-equal
      "/mnt/c/foo"
    (posix-pathname '("c:" "/" "foo") (lambda (drive)
@@ -114,7 +124,17 @@
 
  (test-equal
      "c:foo"
-   (windows-pathname '("c:" "" "foo"))))
+   (windows-pathname '("c:" "" "foo")))
+
+ (call/cc
+  (lambda (k)
+    (with-exception-handler
+        (lambda (err)
+          (test-assert (path-error? err))
+          (k #t))
+      (lambda ()
+        (windows-pathname '("" "/" "foo\\bar"))
+        (test-assert #f))))))
 
 (test-group
  "pathname"
@@ -215,5 +235,130 @@
 
  (test-equal '("" "/")
    (path-parent '("" "/"))))
+
+(test-group
+ "path-filename"
+
+ (test-equal #f
+   (path-filename '("" "/")))
+
+ (test-equal "bar"
+   (path-filename '("" "/" "foo" "bar"))))
+
+(test-group
+ "path-relative-to"
+
+ (test-equal '("" "" "bar" "baz")
+   (path-relative-to '("" "" "foo" "bar" "baz")
+                     '("" "" "foo")))
+
+ (test-equal '("" "" "bar" "baz")
+   (path-relative-to '("" "/" "foo" "bar" "baz")
+                     '("" "/" "foo")))
+
+ (test-equal '("" "" "bar" "baz")
+   (path-relative-to '("c:" "/" "foo" "bar" "baz")
+                     '("c:" "/" "foo")))
+
+ (test-equal #f
+   (path-relative-to '("" "/" "foo" "bar" "baz")
+                     '("c:" "/" "foo")))
+
+ (test-equal #f
+   (path-relative-to '("" "/" "foo" "bar" "baz")
+                     '("" "" "foo"))))
+
+(test-group
+ "path-suffix"
+
+ (test-equal "exe"
+   (path-suffix '("c:" "/" "Windows" "file.exe")))
+
+ (test-equal #f
+   (path-suffix '("c:" "/")))
+
+ (test-equal #f
+   (path-suffix '("c:" "/" "file")))
+
+ (test-equal #f
+   (path-suffix '("c:" "/" ".file"))))
+
+(test-group
+ "path-with-suffix"
+
+ (test-equal '("c:" "/" "Windows" "file.exe2")
+   (path-with-suffix '("c:" "/" "Windows" "file.exe") "exe2"))
+
+ (test-equal #f
+   (path-with-suffix '("c:" "/") "exe2"))
+
+ (test-equal '("c:" "/" "file.exe2")
+   (path-with-suffix '("c:" "/" "file") "exe2"))
+
+ (test-equal '("c:" "/" ".file.exe2")
+   (path-with-suffix '("c:" "/" ".file") "exe2")))
+
+(test-group
+ "path-without-suffix"
+
+ (test-equal '("c:" "/" "Windows" "file")
+   (path-without-suffix '("c:" "/" "Windows" "file.exe")))
+
+ (test-equal '("c:" "/")
+   (path-without-suffix '("c:" "/")))
+
+ (test-equal '("c:" "/" "file")
+   (path-without-suffix '("c:" "/" "file")))
+
+ (test-equal '("c:" "/" ".file")
+   (path-without-suffix '("c:" "/" ".file"))))
+
+(test-group
+ "path-join"
+
+ (test-equal '("c:" "/" "bar")
+   (path-join '("d:" "/" "baz") '("c:" "/" "bar")))
+
+ (test-equal '("c:" "/" "bar")
+   (path-join '("c:" "/" "baz") '("" "/" "bar")))
+
+ (test-equal '("c:" "/" "foo" "bar")
+   (path-join '("c:" "/" "foo") '("" "" "bar")))
+
+ (test-equal '("c:" "/" "foo" "bar" "baz")
+   (path-join '("c:" "/" "foo")
+              '("" "" "bar")
+              '("" "" "baz"))))
+
+(test-group
+ "path-with-filename"
+
+ (test-equal '("" "/" "bar")
+   (path-with-filename '("" "/" "foo") "bar"))
+
+ (call/cc
+  (lambda (k)
+    (with-exception-handler
+        (lambda (err)
+          (test-assert (path-error? err))
+          (k #t))
+      (lambda ()
+        (path-with-filename '("" "/") "bar")
+        (test-assert #f))))))
+
+(test-group
+ "path-normalize"
+
+ (test-equal '("" "" "foo" "bar")
+   (path-normalize '("" "" "foo" "bar")))
+
+ (test-equal '("" "" ".." "..")
+   (path-normalize '("" "" ".." "..")))
+
+ (test-equal '("" "" "foo" "bar")
+   (path-normalize '("" "" "foo" "bar" ".." ".." "foo" "bar")))
+
+ (test-equal '("" "" ".." "foo")
+   (path-normalize '("" "" "foo" "bar" ".." ".." ".." "foo"))))
 
 (test-end)

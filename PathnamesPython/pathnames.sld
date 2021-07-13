@@ -31,5 +31,7 @@
         path-with-filename
         path-normalize
 
-        path-error?)
+        path-error?
+        path-error-message
+        path-error-irritants)
     (include "pathnames-impl.scm"))

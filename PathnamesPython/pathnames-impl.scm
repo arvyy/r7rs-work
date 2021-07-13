@@ -1,10 +1,11 @@
 (define-record-type <path-error>
-  (path-error message)
+  (path-error message irritants)
   path-error?
-  (message path-error-message)) ;; TODO expose message field?
+  (message path-error-message)
+  (irritants path-error-irritants))
 
-(define (perror message)
-  (raise (path-error message)))
+(define (perror message . objs)
+  (raise (path-error message objs)))
 
 ;; returns list, where each element is an integer (count of separator instances) or a string
 ;; raise error on empty input
@@ -101,7 +102,6 @@
       str)
      #f)))
 
-;; TODO bad example in spec (drive downcase, missing backslash)
 (define (parse-windows-pathname str)
   (define path (parse-pathname #f str))
   (for-each
@@ -109,11 +109,24 @@
      (cond
       ((has-invalid-windows-char? component) =>
        (lambda (char)
-         (perror (string-append "Path contains invalid character: " (string char)))))))
+         (perror "Path contains invalid character" (string char))))))
    (cddr path))
   path)
 
-(define (string-join lst separator)
+(define (validate-components-have-no-separator path separator)
+  (define sep-char (string-ref separator 0))
+  (for-each
+   (lambda (cmp)
+     (string-for-each
+      (lambda (char)
+        (when (equal? char sep-char)
+          (perror "Path component contains separator" path cmp separator)))
+      cmp))
+   (cddr path)))
+
+(define (components-join path separator)
+  (define lst (cddr path))
+  (validate-components-have-no-separator path separator)
   (if (null? lst)
       ""
       (let loop ((lst (cdr lst))
@@ -121,17 +134,19 @@
         (if (null? lst)
             str
             (loop (cdr lst)
-                  (string-append str separator (car lst)))))))
+                  (string-append str
+                                 separator
+                                 (car lst)))))))
 
 (define posix-pathname
   (case-lambda
-    ((path) (posix-pathname path (lambda (drive) (perror "No drive mapper given"))))
+    ((path) (posix-pathname path (lambda (drive) (perror "No drive mapper given to map" drive))))
     ((path drive-mapper)
      (define drive (if (equal? "" (car path))
                        ""
                        (drive-mapper (car path))))
      (define root (cadr path))
-     (define components (string-join (cddr path) "/"))
+     (define components (components-join path "/"))
      (string-append drive root components))))
 
 (define (windows-pathname path)
@@ -147,7 +162,7 @@
     (string-map
      convert-slash
      (cadr path)))
-  (string-append drive root (string-join (cddr path) "\\")))
+  (string-append drive root (components-join path "\\")))
 
 (define (pathname path)
   (define windows?
@@ -167,11 +182,11 @@
     (and (> (string-length drive) 2)
          (equal? "//" (substring drive 0 2))))
   (when (equal? "" (cadr path))
-    (perror "Cannot convert not-absolute path to file uri"))
+    (perror "Cannot convert not-absolute path to file uri" path))
   (cond
-   (unc? (string-append "file:" (car path) "/" (string-join (cddr path) "/")))
-   (drive-defined? (string-append "file:///" (car path) "/" (string-join (cddr path) "/")))
-   (else (string-append "file:///" (string-join (cddr path) "/")))))
+   (unc? (string-append "file:" (car path) "/" (components-join path "/")))
+   (drive-defined? (string-append "file:///" (car path) "/" (components-join path "/")))
+   (else (string-append "file:///" (components-join path "/")))))
 
 (define reserved-names
   (append
@@ -281,11 +296,9 @@
 
 (define (path-filename path)
   (if (null? (cddr path))
-      ""
+      #f
       (car (take-right (cddr path) 1))))
 
-
-;; TODO bad spec params
 (define (path-relative-to path1 path2)
   (define same-root
     (and (equal? (car path1) (car path2))
@@ -308,36 +321,30 @@
                     (car (take-right cmps 1))))
          (period-index (and last
                             (index-of last #\.)))
-         (periond-index (and period-index
-                             (> period-index 0))))
+         (period-index (and period-index
+                            (> period-index 0)
+                            period-index)))
     (if period-index
         (callback (substring last 0 period-index)
                   (substring last (+ 1 period-index) (string-length last)))
         (callback last #f))))
 
-;; TODO bad spec params?
-;; TODO throw error empty components?
 (define (path-suffix path)
   (name+suffix path (lambda (name suffix)
-                      (unless name
-                        (perror "No file component"))
                       suffix)))
 
-;; TODO throw error empty components?
 (define (path-with-suffix path new-suffix)
   (name+suffix path (lambda (name suffix)
                       (if name
                           (append (drop-right path 1)
-                                  (string-append name "." new-suffix))
-                          (perror "No file component")))))
+                                  (list (string-append name "." new-suffix)))
+                          #f))))
 
-;; TODO bad spec params?
-;; TODO throw error empty components?
 (define (path-without-suffix path)
   (name+suffix path (lambda (name suffix)
-                      (if name
-                          (append (drop-right path 1) name)
-                          (perror "No file component")))))
+                      (if suffix
+                          (append (drop-right path 1) (list name))
+                          path))))
 
 (define (path-join basepath path1 . paths)
   (let loop ((basepath basepath)
@@ -355,10 +362,9 @@
 
 (define (path-with-filename path filename)
   (when (null? (cddr path))
-    (perror "No file component"))
+    (perror "No file component" path))
   (append (drop-right path 1) (list filename)))
 
-;; TODO multiple .. in a row?
 (define (path-normalize path)
   (let loop ((cmps (cddr path))
              (res/rev '()))
