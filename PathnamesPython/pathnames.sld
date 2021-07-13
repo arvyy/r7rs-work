@@ -3,8 +3,8 @@
     (import (scheme base)
             (scheme case-lambda)
             (scheme char)
-            (scheme list)
-            (scheme write))
+            (scheme write)
+            (srfi 1))
     (export
         parse-posix-pathname
         parse-windows-pathname
@@ -21,7 +21,7 @@
 
         path-parent
         path-filename
-        ;path-match
+        path-match
         path-relative-to
         path-suffix
         path-with-suffix

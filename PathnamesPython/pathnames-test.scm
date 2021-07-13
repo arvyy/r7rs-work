@@ -246,6 +246,61 @@
    (path-filename '("" "/" "foo" "bar"))))
 
 (test-group
+ "path-match"
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "bar")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "bar")))
+
+ (test-assert
+     (path-match '("" "/" "foo" "bar")
+                 '("" "/" "foo" "bar")))
+
+ (test-assert
+     (not (path-match '("" "/" "foo" "bar")
+                      '("" "/" "bar"))))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "fo?" "b??")))
+
+ (test-assert
+     (not (path-match '("" "" "foo" "bar")
+                      '("" "" "f?" "bar"))))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "b[ar][ar]")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "b*r")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "b*")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "*r")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "*")))
+
+ (test-assert
+     (path-match '("" "" "foo" "bar")
+                 '("" "" "foo" "**")))
+
+ (test-assert
+     (path-match '("" "" "foo" "baaaaaabb")
+                 '("" "" "foo" "b*b*b"))))
+
+(test-group
  "path-relative-to"
 
  (test-equal '("" "" "bar" "baz")

@@ -1,7 +1,4 @@
-.PHONY: test-guile test-gauche test-kawa test-chibi test-chicken
-
-test-guile:
-	guile -L . --r7rs pathnames-test.scm
+.PHONY: test-gauche test-kawa test-chibi test-chicken
 
 test-gauche:
 	gosh -I . pathnames-test.scm

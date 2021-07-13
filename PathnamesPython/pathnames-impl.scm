@@ -380,3 +380,116 @@
               (else
                (loop (cdr cmps)
                      (cons cmp res/rev)))))))))
+
+(define (path-match/cmp cmp pattern char-equal?)
+
+  (define (pick-until-closing-bracket chars)
+    (let loop ((chars chars)
+               (res '()))
+      (cond
+       ((null? chars) (perror 'unexpected-eof))
+       ((equal? (car chars) #\])
+        (values res (cdr chars)))
+       (else (loop (cdr chars)
+                   (cons (car chars) res))))))
+
+  (define (pattern->pat-lst p)
+    (let loop ((pat-lst/rev '())
+               (chars (string->list p)))
+      (cond
+       ((null? chars) (reverse pat-lst/rev))
+       (else (let ((char (car chars)))
+               (cond
+                ((char=? #\* char)
+                 (loop (cons '* pat-lst/rev)
+                       (cdr chars)))
+                ((char=? #\? char)
+                 (loop (cons '? pat-lst/rev)
+                       (cdr chars)))
+                ((char=? #\[ char)
+                 (let ()
+                   (define-values
+                       (match-chars rest-chars)
+                     (pick-until-closing-bracket (cdr chars)))
+                   (loop (cons match-chars pat-lst/rev)
+                           rest-chars)))
+                (else (loop (cons char pat-lst/rev)
+                            (cdr chars)))))))))
+
+  (define (transpose-wildcard rest-pat-lst max-length)
+    (map
+     (lambda (length)
+       (append (make-list length '?)
+               rest-pat-lst))
+     (iota (+ 1 max-length))))
+
+  (define (any-match? chars pat-superlst)
+    (fold
+     (lambda (pat-lst matched)
+       (or matched
+           (match? chars pat-lst)))
+     #f
+     pat-superlst))
+
+  (define (match? chars pat-lst)
+    (cond
+     ((and (null? chars)
+           (null? pat-lst))
+      #t)
+     ((or (null? chars)
+          (null? pat-lst))
+      #f)
+     ((list? (car pat-lst))
+      (find (lambda (el) (char-equal? (car chars) el)) (car pat-lst)))
+     ((equal? '? (car pat-lst))
+      (match? (cdr chars) (cdr pat-lst)))
+     ((equal? '* (car pat-lst))
+      (any-match? chars
+                  (transpose-wildcard (cdr pat-lst)
+                                      (length chars))))
+     ((char? (car pat-lst))
+      (if (char-equal? (car chars)
+                  (car pat-lst))
+          (match? (cdr chars)
+                  (cdr pat-lst))
+          #f))
+
+     (else #f)))
+
+  (match? (string->list cmp)
+          (pattern->pat-lst pattern)))
+
+(define path-match
+  (case-lambda
+    ((path glob)
+     (path-match path glob #f))
+    ((path glob ci?)
+     (define char-equal?
+       (if ci?
+           char-ci=?
+           char=?))
+     (if (and (equal? "" (car glob))
+              (equal? "" (cadr glob)))
+         (path-match/relative path glob char-equal?)
+         (path-match/absolute path glob char-equal?)))))
+
+(define (path-match/relative path glob char-equal?)
+  (let loop ((glob-cmps (reverse (cddr glob)))
+             (path-cmps (reverse (cddr path))))
+    (cond
+     ((null? glob-cmps)
+      #t)
+     ((null? path-cmps)
+      #f)
+     ((path-match/cmp (car path-cmps)
+                      (car glob-cmps)
+                      char-equal?)
+      (loop (cdr glob-cmps)
+            (cdr path-cmps)))
+     (else #f))))
+
+(define (path-match/absolute path glob char-equal?)
+  (and (equal? (car path) (car glob))
+       (equal? (cadr path) (cadr glob))
+       (equal? (length path) (length glob))
+       (path-match/relative path glob char-equal?)))
