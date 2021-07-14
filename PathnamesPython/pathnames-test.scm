@@ -286,6 +286,10 @@
                  '("" "" "foo" "b[ar][ar]")))
 
  (test-assert
+     (not (path-match '("" "" "foo" "bar")
+                      '("" "" "foo" "b[abc]z"))))
+
+ (test-assert
      (path-match '("" "" "foo" "bAr")
                  '("" "" "foo" "b[ar][ar]")
                  #t))
