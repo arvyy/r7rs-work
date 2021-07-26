@@ -54,7 +54,6 @@
      (lambda (proc) (apply proc args))
      procs)))
 
-;;TODO spec syntax
 (define (all-of predicate)
   (lambda (lst)
     (let loop ((lst lst))
@@ -63,11 +62,10 @@
        ((predicate (car lst)) (loop (cdr lst)))
        (else #f)))))
 
-;;TODO empty case good?
-(define (any-of predicate)
+(define (some-of predicate)
   (lambda (lst)
     (if (null? lst)
-        #t
+        #f
         (let loop ((lst lst))
           (cond
            ((null? lst) #f)
@@ -95,20 +93,22 @@
         (loop ((car thunks))
               (cdr thunks)))))
 
-(define if-procedure
-  (case-lambda
-    ((value then-thunk)
-     (if value
-         (then-thunk)))
-    ((value then-thunk else-thunk)
-     (if value
-         (then-thunk)
-         (else-thunk)))))
-
-(define (if-not-procedure value else-thunk)
+(define (if-procedure value then-thunk else-thunk)
   (if value
-      (if #f #f)
+      (then-thunk)
       (else-thunk)))
+
+(define (when-procedure value . thunks)
+  (when value
+    (for-each
+     (lambda (fn) (fn))
+     thunks)))
+
+(define (unless-procedure value . thunks)
+  (unless value
+    (for-each
+     (lambda (fn) (fn))
+     thunks)))
 
 (define (value-procedure value then-proc else-thunk)
   (if value

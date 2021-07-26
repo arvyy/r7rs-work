@@ -13,7 +13,7 @@
         disjoin
         each-of
         all-of
-        any-of
+        some-of
         on
         left-section
         right-section
@@ -21,7 +21,8 @@
 
         begin-procedure
         if-procedure
-        if-not-procedure
+        when-procedure
+        unless-procedure
         value-procedure
         case-procedure
         and-procedure

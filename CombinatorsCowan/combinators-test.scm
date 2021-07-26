@@ -150,19 +150,19 @@
 
 
 (test-group
- "any-of"
+ "some-of"
 
  (test-assert
-     ((any-of string?) '()))
+     (not ((some-of string?) '())))
 
  (test-assert
-     ((any-of string?) '("a" b)))
+     ((some-of string?) '("a" b)))
 
  (test-assert
-     (not ((any-of string?) '(a b))))
+     (not ((some-of string?) '(a b))))
 
  (test-assert
-     ((any-of (lambda (x)
+     ((some-of (lambda (x)
                 (when (equal? x 'b)
                   ;; should short circuit before this point
                   (test-assert #f))
@@ -210,10 +210,6 @@
 
  (test-equal 1
    (if-procedure #t
-                 (lambda () 1)))
-
- (test-equal 1
-   (if-procedure #t
                  (lambda () 1)
                  (lambda () (test-assert #f))))
 
@@ -225,11 +221,40 @@
 
 
 (test-group
- "if-not-procedure"
+ "when-procedure"
 
- (test-equal 2
-   (if-not-procedure #f
-                     (lambda () 2))))
+ (define lst1 '())
+ (define lst2 '())
+
+ (when-procedure #t
+                 (lambda () (set! lst1 (cons 1 lst1)))
+                 (lambda () (set! lst1 (cons 2 lst1))))
+
+ (when-procedure #f
+                 (lambda () (set! lst2 (cons 1 lst2)))
+                 (lambda () (set! lst2 (cons 2 lst2))))
+
+ (test-equal '(2 1) lst1)
+ (test-equal '() lst2))
+
+
+
+(test-group
+ "unless-procedure"
+
+ (define lst1 '())
+ (define lst2 '())
+
+ (unless-procedure #t
+                 (lambda () (set! lst1 (cons 1 lst1)))
+                 (lambda () (set! lst1 (cons 2 lst1))))
+
+ (unless-procedure #f
+                 (lambda () (set! lst2 (cons 1 lst2)))
+                 (lambda () (set! lst2 (cons 2 lst2))))
+
+ (test-equal '() lst1)
+ (test-equal '(2 1) lst2))
 
 
 
