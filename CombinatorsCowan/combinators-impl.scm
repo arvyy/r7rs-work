@@ -85,6 +85,70 @@
     (lambda objs
       (apply proc (append objs args-reverse)))))
 
+(define (apply-chain . procs)
+  (define procs/rev (reverse procs))
+  (lambda args
+    (let loop ((values-provider (lambda () (apply values args)))
+               (procs procs/rev))
+      (if (null? procs)
+          (values-provider)
+          (loop (lambda ()
+                  (call-with-values
+                    values-provider
+                    (car procs)))
+                (cdr procs))))))
+
+(define (arguments-all proc)
+  (define all-of* (all-of proc))
+  (lambda args
+    (all-of* args)))
+
+(define (arguments-any proc)
+  (define some-of* (some-of proc))
+  (lambda args
+    (some-of* args)))
+
+(define (arguments-drop/take proc drop/take n)
+  (lambda args
+    (apply proc (drop/take args n))))
+
+(define (arguments-drop proc n)
+  (arguments-drop/take proc drop n))
+
+(define (arguments-drop-right proc n)
+  (arguments-drop/take proc drop-right n))
+
+(define (arguments-take proc n)
+  (arguments-drop/take proc take n))
+
+(define (arguments-take-right proc n)
+  (arguments-drop/take proc take-right n))
+
+(define group-by
+  (case-lambda
+    ((key-proc) (group-by key-proc equal?))
+    ((key-proc =)
+     (lambda (lst)
+       (let loop ((lst lst)
+                  (mapping-alist '()))
+         (cond
+           ((null? lst)
+            (reverse
+              (map
+                (lambda (entry)
+                  (reverse (cdr entry)))
+                mapping-alist)))
+           (else (let* ((value (car lst))
+                        (key (key-proc value)))
+                   (cond
+                     ((assoc key mapping-alist =) => (lambda (entry)
+                                                       (set-cdr! entry (cons value (cdr entry)))
+                                                       (loop (cdr lst)
+                                                             mapping-alist)))
+                     (else (loop (cdr lst)
+                                 (cons (cons key (list value))
+                                       mapping-alist))))))))))))
+
 (define (begin-procedure . thunks)
   (let loop ((value (if #f #f))
              (thunks thunks))
@@ -124,7 +188,7 @@
                                      ((cdr entry))))
       (else (else-thunk))))))
 
-(define and-procedure
+(define lazy-and-procedure
   (case-lambda
     (() #t)
     (thunks (let loop ((thunks thunks))
@@ -133,7 +197,18 @@
                ((not ((car thunks))) #f)
                (else (loop (cdr thunks))))))))
 
-(define or-procedure
+(define eager-and-procedure
+  (case-lambda
+    (() #t)
+    (thunks (let loop ((thunks thunks)
+                       (result #t))
+              (cond
+               ((null? (cdr thunks)) (let ((r ((car thunks))))
+                                      (and result r)))
+               ((not ((car thunks))) (loop (cdr thunks) #f))
+               (else (loop (cdr thunks) result)))))))
+
+(define lazy-or-procedure
   (case-lambda
     (() #f)
     (thunks (let loop ((thunks thunks))
@@ -141,6 +216,19 @@
                ((null? thunks) #f)
                (((car thunks)) => identity)
                (else (loop (cdr thunks))))))))
+
+(define eager-or-procedure
+  (case-lambda
+    (() #f)
+    (thunks (let loop ((thunks thunks)
+                       (result #f))
+              (cond
+               ((null? thunks) result)
+               (((car thunks)) => (lambda (res)
+                                    (loop (cdr thunks) 
+                                          (or result
+                                              res))))
+               (else (loop (cdr thunks) result)))))))
 
 (define (loop-procedure thunk)
   (thunk)

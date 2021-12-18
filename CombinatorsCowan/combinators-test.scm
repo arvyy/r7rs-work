@@ -2,15 +2,18 @@
   (guile
    (import (scheme base)
            (combinators)
+           (srfi srfi-1)
            (srfi srfi-64)))
   (chibi
    (import (scheme base)
            (combinators)
+           (srfi 1)
            (rename (except (chibi test) test-equal)
                    (test test-equal))))
   (else
    (import (scheme base)
            (combinators)
+           (srfi 1)
            (srfi 64))))
 
 
@@ -196,6 +199,115 @@
 
 
 (test-group
+  "apply-chain"
+  (define cadr* (apply-chain car cdr))
+  (define factorial ;;test multivalue
+    (apply-chain
+      *
+      (lambda (n) (apply values (cdr (iota (+ 1 n)))))))
+  
+  (test-equal 2 (cadr* (list 1 2 3)))
+  (test-equal 120 (factorial 5)))
+
+
+
+(test-group
+ "arguments-all"
+
+ (test-assert
+     ((arguments-all string?)))
+
+ (test-assert
+     ((arguments-all string?) "a" "b"))
+
+ (test-assert
+     (not ((arguments-all string?) "a" 'b)))
+
+ (test-assert
+     (not ((arguments-all (lambda (x)
+                     (when (equal? x 'c)
+                       ;; should short circuit before this point
+                       (test-assert #f))
+                     (string? x)))
+           "a" 'b 'c))))
+
+
+
+(test-group
+ "arguments-any"
+
+ (test-assert
+     (not ((arguments-any string?))))
+
+ (test-assert
+     ((arguments-any string?) "a" 'b))
+
+ (test-assert
+     (not ((arguments-any string?) 'a 'b)))
+
+ (test-assert
+     ((arguments-any (lambda (x)
+                (when (equal? x 'b)
+                  ;; should short circuit before this point
+                  (test-assert #f))
+                (string? x)))
+      "a" 'b)))
+
+
+(test-group
+  "arguments-drop"
+  
+  (test-equal
+    '(4)
+    ((arguments-drop list 3) 1 2 3 4)))
+
+
+
+(test-group
+  "arguments-drop-right"
+  
+  (test-equal
+    '(1)
+    ((arguments-drop-right list 3) 1 2 3 4)))
+
+
+
+(test-group
+  "arguments-take"
+  
+  (test-equal
+    '(1 2 3)
+    ((arguments-take list 3) 1 2 3 4)))
+
+
+
+(test-group
+  "arguments-take-right"
+  
+  (test-equal
+    '(2 3 4)
+    ((arguments-take-right list 3) 1 2 3 4)))
+
+
+(test-group
+  "group-by"
+  
+  (test-equal
+    '((1 3)
+      (2 4))
+    ((group-by odd?) '(1 2 3 4)))
+  
+  (test-equal
+    '(("aa" "ab")
+      ("ba" "bb"))
+    ((group-by (lambda (str) (string-ref str 0))
+               char=?)
+     (list "aa" "ba" "bb" "ab"))))
+
+
+
+
+(test-group
  "begin-procedure"
 
  (test-equal 2
@@ -290,34 +402,74 @@
 
 
 (test-group
- "and-procedure"
+ "lazy-and-procedure"
 
  (test-assert
-     (and-procedure))
+     (lazy-and-procedure))
 
  (test-equal 2
-   (and-procedure (lambda () 1)
-                  (lambda () 2)))
+   (lazy-and-procedure (lambda () 1)
+                       (lambda () 2)))
 
  (test-assert
-     (not (and-procedure (lambda () #f)
-                         (lambda () (test-assert #f))))))
+     (not (lazy-and-procedure (lambda () #f)
+                              (lambda () (test-assert #f))))))
 
 
 
 (test-group
- "or-procedure"
+ "eager-and-procedure"
 
  (test-assert
-     (not (or-procedure)))
+     (eager-and-procedure))
 
  (test-equal 2
-   (or-procedure (lambda () #f)
+   (eager-and-procedure (lambda () 1)
+                        (lambda () 2)))
+
+ (let ((second-called? #f))
+  (test-assert
+     (not (eager-and-procedure (lambda () #f)
+                               (lambda () 
+                                 (set! second-called? #t)
+                                 #t))))
+  (test-assert second-called?)))
+
+
+
+(test-group
+ "lazy-or-procedure"
+
+ (test-assert
+     (not (lazy-or-procedure)))
+
+ (test-equal 2
+   (lazy-or-procedure (lambda () #f)
                  (lambda () 2)))
 
  (test-assert
-     (or-procedure (lambda () 1)
+     (lazy-or-procedure (lambda () 1)
                    (lambda () (test-assert #f)))))
+
+
+
+(test-group
+ "eager-or-procedure"
+
+ (test-assert
+     (not (eager-or-procedure)))
+
+ (test-equal 2
+   (eager-or-procedure (lambda () #f)
+                       (lambda () 2)))
+
+ (let ((second-called? #f))
+  (test-equal 1
+     (eager-or-procedure (lambda () 1)
+                        (lambda () 
+                          (set! second-called? #t)
+                          #f)))
+  (test-assert second-called?)))
 
 
 
