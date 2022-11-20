@@ -1,6 +1,8 @@
 (define-library
     (uris)
     (import (scheme base)
+            (scheme char)
+            (scheme case-lambda)
             (srfi 1))
     (export uri-object?
             uri-reference?

@@ -27,12 +27,12 @@
     ((password) password)
     (else #f)))
 
-
 (define (match-part input-string start-index pattern)
   (cond
    ((>= start-index (string-length input-string))
     #f)
-   (else (+ start-index (pattern input-string start-index)))))
+   ((pattern input-string start-index) => values)
+   (else #f)))
 
 (define (or-pattern . patterns)
   (lambda (str index)
@@ -45,35 +45,37 @@
                 (else (loop (cdr patterns))))))))))
 
 (define (seq-pattern . patterns)
-  (lambda (str index)
-    (let loop ((index index)
+  (lambda (str start-index)
+    (let loop ((index start-index)
                (patterns patterns))
       (cond
        ((null? patterns) index)
        (else (let ((p (car patterns)))
                (cond
-                ((p str index) => (lambda (chars)
-                                    (loop (+ chars index) (cdr patterns))))
+                ((>= index (string-length str)) #f)
+                ((p str index) => (lambda (new-index)
+                                    (loop new-index (cdr patterns))))
                 (else #f))))))))
 
 (define (repeat-pattern pattern)
   (lambda (str index)
     (let loop ((index index))
       (cond
-       ((pattern str index) => (lambda (chars)
-                                 (loop (+ chars index))))
+       ((>= index (string-length str)) index)
+       ((pattern str index) => (lambda (new-index)
+                                 (loop new-index)))
        (else index)))))
 
 (define (char-predicate-pattern predicate)
   (lambda (str index)
     (if (predicate (string-ref str index))
-        1
+        (+ 1 index)
         #f)))
 
 (define (char-pattern char)
   (lambda (str index)
     (if (char=? char (string-ref str index))
-        1
+        (+ 1 index)
         #f)))
 
 (define (char-range-pattern char1 char2)
@@ -81,7 +83,7 @@
         (n2 (char->integer char2)))
     (lambda (str index)
       (if (<= n1 (char->integer (string-ref str index)) n2)
-          1
+          (+ 1 index)
           #f))))
 
 (define %-encoding-pattern
@@ -99,21 +101,21 @@
        ((and (char=? #\% (string-ref str index))
              (hex? (string-ref str (+ 1 index)))
              (hex? (string-ref str (+ 1 index))))
-        3)
+        (+ 3 index))
        (else #f)))))
 
 (define gendelim-pattern
   (let ((chars '(#\: #\/ #\? #\# #\[ #\] #\@)))
     (lambda (str index)
       (if (member (string-ref str index) chars)
-          1
+          (+ 1 index)
           #f))))
 
 (define subdelim-pattern
   (let ((chars '(#\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=)))
     (lambda (str index)
       (if (member (string-ref str index) chars)
-          1
+          (+ 1 index)
           #f))))
 
 (define unreserved-pattern
@@ -123,12 +125,12 @@
       (if (or (char-alphabetic? c)
               (char-numeric? c)
               (member c chars))
-          1
+          (+ 1 index)
           #f))))
 
 (define parse-scheme
   (let* ((allowed-char? (lambda (c)
-                         (or (char-alphabetic? c) (char-numeric? c) (char=? c #\+) (char=? #\-) (char=? #\.))))
+                         (or (char-alphabetic? c) (char-numeric? c) (char=? c #\+) (char=? c #\-) (char=? c #\.))))
          (pattern (seq-pattern
                    (char-predicate-pattern char-alphabetic?)
                    (repeat-pattern
@@ -276,7 +278,7 @@
                                                                           segment-pattern))))
          (pattern (or-pattern
                    path-absolute-pattern
-                   path-rootless-pattern)))
+                   path-noscheme-pattern)))
     (lambda (input-string start-index)
       (define match (match-part input-string start-index pattern))
       (if match
@@ -291,7 +293,7 @@
                     pchar-pattern
                     (char-pattern #\/)
                     (char-pattern #\?))))))
-    (lambda (input-string index)
+    (lambda (input-string start-index)
       (define match (match-part input-string start-index pattern))
       (if match
           (values (substring input-string (+ 1 start-index) match) match)
@@ -305,7 +307,7 @@
                     pchar-pattern
                     (char-pattern #\/)
                     (char-pattern #\?))))))
-    (lambda (input-string index)
+    (lambda (input-string start-index)
       (define match (match-part input-string start-index pattern))
       (if match
           (values (substring input-string (+ 1 start-index) match) match)
@@ -319,7 +321,7 @@
                     ((host index) (parse-host str index))
                     ((port index) (parse-port str index)))
         (values (substring str start-index index) index))))
-   (else (values #f index))))
+   (else (values #f start-index))))
 
 (define (parse-specific str start-index)
   (let*-values (((authority index) (parse-authority str start-index))
@@ -344,7 +346,7 @@
        specific
        "")
    (if fragment
-       fragment
+       (string-append "#" fragment)
        "")))
 
 (define (specific->children specific)
@@ -366,12 +368,14 @@
        "")))
 
 (define (authority->children authority)
-  (let*-values (((userinfo index) (parse-userinfo authority 0))
-                ((host index) (parse-host authority index))
-                ((port index) (parse-port authority index)))
-    (unless host
-      (error "TODO malformed"))
-    (values userinfo host port)))
+  (if authority
+      (let*-values (((userinfo index) (parse-userinfo authority 0))
+                    ((host index) (parse-host authority index))
+                    ((port index) (parse-port authority index)))
+        (unless host
+          (validation-error))
+        (values userinfo host port))
+      (values #f #f #f)))
 
 (define (authority<-children userinfo host port)
   (string-append
@@ -392,15 +396,17 @@
      (else (loop (+ 1 i))))))
 
 (define (userinfo->children userinfo)
-  (define colon-index (index-of userinfo #\:))
-  (if colon-index
-      (values (substring userinfo 0 colon-index) (substring userinf (+ 1 colon-index) (string-length userinfo)))
-      (values userinfo #f)))
+  (if userinfo
+      (let ((colon-index (index-of userinfo #\:)))
+        (if colon-index
+            (values (substring userinfo 0 colon-index) (substring userinf (+ 1 colon-index) (string-length userinfo)))
+            (values userinfo #f)))
+      (values #f #f)))
 
 (define (userinfo<-children username password)
   (cond
    ((and username password) (string-append username ":" password))
-   (password (error "TODO malformed"))
+   (password (validation-error))
    (username username)))
 
 (define relations
@@ -409,15 +415,22 @@
         (list authority (list userinfo host port) authority->children authority<-children)
         (list userinfo (list username password) userinfo->children userinfo<-children)))
 
-(define (get-part data computed index)
+(define (get-part uri index)
+  (define data (uri-data uri))
+  (define computed (uri-computed uri))
   (define v (vector-ref data index))
   (cond
    ((vector-ref computed index)
     (vector-ref data index))
    (else
-    (begin
-      (compute-part! data computed index)
-      (get-part data computed index)))))
+    ;; operate on a copy, so that if exception
+    ;; is raised, the old state is preserved
+    (let ((new-data (vector-copy data))
+          (new-computed (vector-copy computed)))
+      (compute-part! new-data new-computed index)
+      (set-uri-data! uri new-data)
+      (set-uri-computed! uri new-computed)
+      (vector-ref new-data index)))))
 
 (define (compute-part! data computed index)
   (cond
@@ -432,7 +445,7 @@
     (cond
      ((vector-ref computed pindex) (success (vector-ref data pindex)))
      (else
-      (let ((computed? (compute-part-from-parent! data pindex)))
+      (let ((computed? (compute-part-from-parent! data computed pindex)))
         (if computed?
             (success (vector-ref data pindex))
             (fail))))))
@@ -490,8 +503,15 @@
 (define-record-type <uri>
   (make-uri-private data computed)
   uri-object?
-  (data uri-data)
-  (computed uri-computed))
+  (data uri-data set-uri-data!)
+  (computed uri-computed set-uri-computed!))
+
+(define-record-type <parse-error>
+  (make-parse-error)
+  uri-error?)
+
+(define (validation-error)
+  (raise (make-parse-error)))
 
 (define (make-uri-object . args)
   (define data (make-vector 12 #f))
@@ -499,23 +519,23 @@
   (let loop ((args args))
     (cond
      ((null? args) (make-uri-private data computed))
-     ((null? (cdr args)) (error "TODO malformed"))
+     ((null? (cdr args)) (validation-error))
      (else (let ((key (car args))
                  (value (cadr args)))
              (unless (symbol? key)
-               (error "TODO malformed"))
+               (validation-error))
              (unless (or (string? value) (not value))
-               (error "TODO malformed"))
+               (validation-error))
              (let ((index (key->index key)))
                (unless key
-                 (error "TODO malformed"))
+                 (validation-error))
                (vector-set! data index value)
                (vector-set! computed index #t)
                (loop (cddr args))))))))
 
 (define (make-getter index)
   (lambda (uri)
-    (get-part (uri-data uri) (uri-computed) index)))
+    (get-part uri index)))
 
 (define uri-whole (make-getter whole))
 (define uri-scheme (make-getter scheme))
@@ -541,7 +561,7 @@
      ((char=? #\% (string-ref str i))
       (begin
         (unless (%-encoding-pattern str i)
-          (error "TODO malformed"))
+          (validation-error))
         (let* ((codepoint-str (substring (+ i 1) (+ i 3)))
                (codepoint (string->number codepoint-str 16))
                (char (number->char codepoint)))
@@ -568,9 +588,36 @@
             (+ 1 i)))
      (else (loop chunks chunk-start (+ 1 i))))))
 
+(define (string-split str chars)
+  (define len (string-length str))
+  (let loop ((i 0)
+             (chunks '())
+             (chunk-start 0))
+    (cond
+     ((>= i len) (reverse (cons (substring str chunk-start i) chunks)))
+     (else (let ((char (string-ref str i)))
+             (if (member char chars)
+                 (loop (+ 1 i) (cons (substring chunk-start chunk-start i) chunks) (+ 1 i))
+                 (loop (+ 1 i) chunks chunk-start)))))))
+
 (define uri-parse-query
   (case-lambda
     ((uri) (uri-parse-query uri #t))
     ((uri plus)
-     ;; TODO
-     )))
+     (define query (uri-query uri))
+     (define entries (string-split query '(#\; #\&)))
+     (map
+      (lambda (e)
+        (define equal-index (index-of e #\=))
+        (if equal-index
+            (cons (string->symbol (substring e 0 equal-index)) (substring e (+ 1 equal-index) (string-length e)))
+            (cons (string->symbol e) "")))
+      entries))))
+
+(define (uri-merge uri base-uri)
+  ;;TODO
+  #f)
+
+(define (uri-parse-data uri)
+  ;;TODO
+  #f)
