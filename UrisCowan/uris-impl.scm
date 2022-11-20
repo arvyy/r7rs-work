@@ -147,7 +147,8 @@
                   (repeat-pattern
                    (or-pattern unreserved-pattern
                                %-encoding-pattern
-                               subdelim-pattern))
+                               subdelim-pattern
+                               (char-pattern #\:)))
                   (char-pattern #\@))))
     (lambda (input-string start-index)
       (define match (match-part input-string start-index pattern))
@@ -248,7 +249,7 @@
       (define match (match-part input-string start-index pattern))
       (if match
           (values (substring input-string start-index match) match)
-          (values #f start-index)))))
+          (values "" start-index)))))
 
 (define path-absolute-pattern
   (or-pattern (seq-pattern (char-pattern #\/)
@@ -270,7 +271,7 @@
       (define match (match-part input-string start-index pattern))
       (if match
           (values (substring input-string start-index match) match)
-          (values #f start-index)))))
+          (values "" start-index)))))
 
 (define parse-path/no-scheme
   (let* ((path-noscheme-pattern (seq-pattern segment-nz-nc-pattern
@@ -283,7 +284,7 @@
       (define match (match-part input-string start-index pattern))
       (if match
           (values (substring input-string start-index match) match)
-          (values #f start-index)))))
+          (values "" start-index)))))
 
 (define parse-query
   (let ((pattern (seq-pattern
@@ -320,7 +321,7 @@
       (let*-values (((userinfo index) (parse-userinfo str index))
                     ((host index) (parse-host str index))
                     ((port index) (parse-port str index)))
-        (values (substring str start-index index) index))))
+        (values (substring str (+ 2 start-index) index) index))))
    (else (values #f start-index))))
 
 (define (parse-specific str start-index)
@@ -362,7 +363,9 @@
    (if authority
        (string-append "//" authority)
        "")
-   path
+   (if path
+       path
+       "")
    (if query
        (string-append "?" query)
        "")))
@@ -380,7 +383,7 @@
 (define (authority<-children userinfo host port)
   (string-append
    (if userinfo
-       (string-append userinf "@")
+       (string-append userinfo "@")
        "")
    host
    (if port
@@ -399,7 +402,7 @@
   (if userinfo
       (let ((colon-index (index-of userinfo #\:)))
         (if colon-index
-            (values (substring userinfo 0 colon-index) (substring userinf (+ 1 colon-index) (string-length userinfo)))
+            (values (substring userinfo 0 colon-index) (substring userinfo (+ 1 colon-index) (string-length userinfo)))
             (values userinfo #f)))
       (values #f #f)))
 
@@ -524,7 +527,10 @@
                  (value (cadr args)))
              (unless (symbol? key)
                (validation-error))
-             (unless (or (string? value) (not value))
+             (unless (or
+                      (and (equal? 'port key) (number? value))
+                      (string? value)
+                      (not value))
                (validation-error))
              (let ((index (key->index key)))
                (unless key
