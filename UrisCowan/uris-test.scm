@@ -97,6 +97,46 @@
     (test-equal "foo" (uri-username userinfo))
     (test-equal #f (uri-password userinfo))))
 
+(define (do-test-uri-part-computation-from-children)
+
+  ;; compute whole
+  (let ((uri (make-uri-object 'scheme "http" 'specific "//foo:bar@baz:80/path?query=a" 'fragment "fragment")))
+    (test-equal "http://foo:bar@baz:80/path?query=a#fragment" (uri-whole uri)))
+  (let ((uri (make-uri-object 'specific "//foo:bar@baz:80/path?query=a" 'fragment "fragment")))
+    (test-equal "//foo:bar@baz:80/path?query=a#fragment" (uri-whole uri)))
+  (let ((uri (make-uri-object 'specific "//foo:bar@baz:80/path?query=a")))
+    (test-equal "//foo:bar@baz:80/path?query=a" (uri-whole uri)))
+
+  ;; compute specific
+  (let ((uri (make-uri-object 'authority "foo:bar@baz:80" 'path "/path" 'query "query=a")))
+    (test-equal "//foo:bar@baz:80/path?query=a" (uri-specific uri)))
+  (let ((uri (make-uri-object 'path "path" 'query "query=a")))
+    (test-equal "path?query=a" (uri-specific uri)))
+  (let ((uri (make-uri-object 'authority "foo:bar@baz:80" 'path "/path")))
+    (test-equal "//foo:bar@baz:80/path" (uri-specific uri)))
+  (let ((uri (make-uri-object 'authority "foo:bar@baz:80" 'query "query=a")))
+    (test-equal "//foo:bar@baz:80?query=a" (uri-specific uri)))
+  (let ((uri (make-uri-object 'authority "foo:bar@baz:80")))
+    (test-equal "//foo:bar@baz:80" (uri-specific uri)))
+
+  ;; compute authority
+  (let ((uri (make-uri-object 'host "baz" 'port 80 'userinfo "foo:bar")))
+    (test-equal "foo:bar@baz:80" (uri-authority uri)))
+  (let ((uri (make-uri-object 'host "baz" 'port 80)))
+    (test-equal "baz:80" (uri-authority uri)))
+  (let ((uri (make-uri-object 'host "baz" 'userinfo "foo:bar")))
+    (test-equal "foo:bar@baz" (uri-authority uri)))
+  (let ((uri (make-uri-object 'host "baz")))
+    (test-equal "baz" (uri-authority uri)))
+
+  ;; compute userinfo
+  (let ((uri (make-uri-object 'host "baz" 'username "foo" 'password "bar")))
+    (test-equal "foo:bar" (uri-userinfo uri)))
+  (let ((uri (make-uri-object 'host "baz" 'username "foo")))
+    (test-equal "foo" (uri-userinfo uri))))
+
+
+
 (define (do-test-uri-computation)
   (define (assert-uris-match uri-producer expected-uri)
     (test-equal (uri-whole expected-uri) (uri-whole (uri-producer)))
@@ -157,16 +197,71 @@
                       'password "bar"
                       'host "www.ics.uci.edu"
                       'path ""))
-   (string->uri-object "//foo@www.ics.uci.edu"))
+   (string->uri-object "//foo@www.ics.uci.edu")))
 
+(define (do-test-parsing-error)
+  (define (assert-throws thunk)
+    (call/cc (lambda (k)
+               (with-exception-handler
+                   (lambda (err)
+                     (if (uri-error? err)
+                         (k #t)
+                         (test-assert #f)))
+                 (lambda ()
+                   (thunk)
+                   (test-assert #f))))))
 
-  )
+  ;; password without username
+  (assert-throws (lambda ()
+                   (uri-userinfo (make-uri-object 'password "bar" 'host "baz"))))
+
+  ;; port without host
+  (assert-throws (lambda ()
+                   (uri-userinfo (make-uri-object 'port 80))))
+
+  ;; query without path nor authority
+  (assert-throws (lambda ()
+                   (uri-userinfo (make-uri-object 'query "query=a")))))
+
+(define (do-test-parse-path)
+  (test-equal
+      '("" "foo" "bar")
+    (uri-parse-path (string->uri-object "http:foo/bar")))
+  (test-equal
+      '("foo" "bar")
+    (uri-parse-path (string->uri-object "http://hostname/foo/bar")))
+  (test-equal
+      '("")
+    (uri-parse-path (string->uri-object "http://hostname"))))
+
+(define (do-test-parse-query)
+  (define (test-alist-equal expected actual)
+    (for-each
+     (lambda (e)
+       (define e2 (assoc (car e) actual))
+       (test-assert e2)
+       (test-equal (cdr e) (cdr e2)))
+     expected))
+  (test-alist-equal '((foo . "bar") (foo2 . "bar2"))
+                    (uri-parse-query (string->uri-object "hostname/?foo=bar&foo2=bar2")))
+  (test-alist-equal '((foo . "bar") (foo2 . "bar2"))
+                    (uri-parse-query (string->uri-object "hostname/?foo=bar;foo2=bar2")))
+  (test-alist-equal '()
+                    (uri-parse-query (string->uri-object "hostname/"))))
 
 
 (test-begin "URIs")
 
 (test-group "uri part computation"
   (do-test-uri-computation)
-  (do-test-uri-part-computation-from-parent))
+  (do-test-uri-part-computation-from-parent)
+  (do-test-uri-part-computation-from-children)
+  (do-test-parsing-error))
+
+(test-group "uri parse path"
+  (do-test-parse-path))
+
+(test-group "uri parse query"
+  (do-test-parse-query))
 
 (test-end)

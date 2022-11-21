@@ -27,5 +27,5 @@
             uri-parse-query
             uri-merge
             uri-parse-data
-            uri-parse-error?)
+            uri-error?)
     (include "uris-impl.scm"))

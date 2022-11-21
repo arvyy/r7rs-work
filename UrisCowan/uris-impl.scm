@@ -579,21 +579,6 @@
 (define (string->uri-object str)
   (make-uri-object 'whole (decode-% str '(#\: #\/ #\? #\# #\[ #\] #\@ #\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=))))
 
-(define (uri-parse-path uri)
-  (define path (uri-path uri))
-  (define len (string-length path))
-  (let loop ((chunks '())
-             (chunk-start 0)
-             (i 0))
-    (cond
-     ((>= i len) (reverse chunks))
-     ((char=? (string-ref path i) #\/)
-      (loop (cons (substring path chunk-start i)
-                  chunks)
-            (chunk-start (+ 1 i))
-            (+ 1 i)))
-     (else (loop chunks chunk-start (+ 1 i))))))
-
 (define (string-split str chars)
   (define len (string-length str))
   (let loop ((i 0)
@@ -603,22 +588,33 @@
      ((>= i len) (reverse (cons (substring str chunk-start i) chunks)))
      (else (let ((char (string-ref str i)))
              (if (member char chars)
-                 (loop (+ 1 i) (cons (substring chunk-start chunk-start i) chunks) (+ 1 i))
+                 (loop (+ 1 i) (cons (substring str chunk-start i) chunks) (+ 1 i))
                  (loop (+ 1 i) chunks chunk-start)))))))
+
+(define (uri-parse-path uri)
+  (define path (or (uri-path uri) ""))
+  (define chunks (string-split path '(#\/)))
+  (define absolute? (and (> (string-length path) 0) (char=? #\/ (string-ref path 0))))
+  (cond
+   (absolute? (cdr chunks))
+   ((equal? "" (car chunks)) chunks)
+   (else (cons "" chunks))))
 
 (define uri-parse-query
   (case-lambda
     ((uri) (uri-parse-query uri #t))
     ((uri plus)
      (define query (uri-query uri))
-     (define entries (string-split query '(#\; #\&)))
-     (map
-      (lambda (e)
-        (define equal-index (index-of e #\=))
-        (if equal-index
-            (cons (string->symbol (substring e 0 equal-index)) (substring e (+ 1 equal-index) (string-length e)))
-            (cons (string->symbol e) "")))
-      entries))))
+     (cond
+      ((not query) '())
+      (else (let ((entries (string-split query '(#\; #\&))))
+              (map
+               (lambda (e)
+                 (define equal-index (index-of e #\=))
+                 (if equal-index
+                     (cons (string->symbol (substring e 0 equal-index)) (substring e (+ 1 equal-index) (string-length e)))
+                     (cons (string->symbol e) "")))
+               entries)))))))
 
 (define (uri-merge uri base-uri)
   ;;TODO
