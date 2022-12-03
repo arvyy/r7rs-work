@@ -223,6 +223,10 @@
   (assert-throws (lambda ()
                    (uri-userinfo (make-uri-object 'query "query=a")))))
 
+(define (do-test-%-decoding)
+  #f
+  )
+
 (define (do-test-parse-path)
   (test-equal
       '("" "foo" "bar")
@@ -249,8 +253,23 @@
   (test-alist-equal '()
                     (uri-parse-query (string->uri-object "hostname/"))))
 
+(define (do-test-data-parsing)
+  (let*-values (((uri) (string->uri-object "data:asd/asd;base64,abcd"))
+                ((mediatype data) (uri-parse-data uri)))
+    (test-assert mediatype)
+    (test-assert data)))
 
 (test-begin "URIs")
+
+(test-group "predicates"
+  (test-assert (uri-object? (string->uri-object "http://foo")))
+  (test-assert (not (uri-object? 1)))
+  (test-assert (uri-reference? (string->uri-object "http://foo")))
+  (test-assert (not (uri-reference? (string->uri-object "http://foo"))))
+  (test-assert (uri-absolute? (string->uri-object "http://foo")))
+  (test-assert (not (uri-absolute? (string->uri-object "http://foo"))))
+  (test-assert (uri-relative-reference? (string->uri-object "http://foo")))
+  (test-assert (not (uri-relative-reference? (string->uri-object "http://foo")))))
 
 (test-group "uri part computation"
   (do-test-uri-computation)
@@ -263,5 +282,8 @@
 
 (test-group "uri parse query"
   (do-test-parse-query))
+
+(test-group "uri parse data"
+  (do-test-data-parsing))
 
 (test-end)

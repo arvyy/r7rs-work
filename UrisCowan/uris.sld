@@ -1,6 +1,7 @@
 (define-library
     (uris)
     (import (scheme base)
+            (scheme bitwise)
             (scheme char)
             (scheme case-lambda)
             (scheme write)
