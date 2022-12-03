@@ -52,7 +52,6 @@
        ((null? patterns) index)
        (else (let ((p (car patterns)))
                (cond
-                ((>= index (string-length str)) #f)
                 ((p str index) => (lambda (new-index)
                                     (loop new-index (cdr patterns))))
                 (else #f))))))))
@@ -68,13 +67,17 @@
 
 (define (char-predicate-pattern predicate)
   (lambda (str index)
-    (if (predicate (string-ref str index))
+    (if (and
+         (< index (string-length str))
+         (predicate (string-ref str index)))
         (+ 1 index)
         #f)))
 
-(define (char-pattern char)
+(define (char-pattern . chars)
   (lambda (str index)
-    (if (char=? char (string-ref str index))
+    (if (and
+         (< index (string-length str))
+         (member (string-ref str index) chars))
         (+ 1 index)
         #f)))
 
@@ -82,7 +85,9 @@
   (let ((n1 (char->integer char1))
         (n2 (char->integer char2)))
     (lambda (str index)
-      (if (<= n1 (char->integer (string-ref str index)) n2)
+      (if (and
+           (< index (string-length str))
+           (<= n1 (char->integer (string-ref str index)) n2))
           (+ 1 index)
           #f))))
 
@@ -118,28 +123,19 @@
        (else #f)))))
 
 (define gendelim-pattern
-  (let ((chars '(#\: #\/ #\? #\# #\[ #\] #\@)))
-    (lambda (str index)
-      (if (member (string-ref str index) chars)
-          (+ 1 index)
-          #f))))
+  (char-pattern #\: #\/ #\? #\# #\[ #\] #\@))
 
 (define subdelim-pattern
-  (let ((chars '(#\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=)))
-    (lambda (str index)
-      (if (member (string-ref str index) chars)
-          (+ 1 index)
-          #f))))
+  (char-pattern #\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=))
 
 (define unreserved-pattern
-  (let ((chars '(#\- #\. #\_ #\~)))
-    (lambda (str index)
-      (define c (string-ref str index))
-      (if (or (char-alphabetic? c)
-              (char-numeric? c)
-              (member c chars))
-          (+ 1 index)
-          #f))))
+  (char-pattern #\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=))
+
+(define unreserved-pattern
+  (or-pattern
+     (char-predicate-pattern char-alphabetic?)
+     (char-predicate-pattern char-numeric?)
+     (char-pattern #\- #\. #\_ #\~)))
 
 (define parse-scheme
   (let* ((allowed-char? (lambda (c)
@@ -372,6 +368,10 @@
     (values authority path query)))
 
 (define (specific<-children authority path query)
+  (when (and query
+             (not path)
+             (not authority))
+    (validation-error))
   (string-append
    (if authority
        (string-append "//" authority)
@@ -394,14 +394,16 @@
       (values #f #f #f)))
 
 (define (authority<-children userinfo host port)
+  (unless host
+    (validation-error))
   (string-append
-   (if userinfo
-       (string-append userinfo "@")
-       "")
-   host
-   (if port
-       (string-append ":" (number->string port))
-       "")))
+       (if userinfo
+           (string-append userinfo "@")
+           "")
+       host
+       (if port
+           (string-append ":" (number->string port))
+           "")))
 
 (define (index-of str char)
   (define len (string-length str))
@@ -581,16 +583,17 @@
       (begin
         (unless (%-encoding-pattern str i)
           (validation-error))
-        (let* ((codepoint-str (substring (+ i 1) (+ i 3)))
+        (let* ((codepoint-str (substring str (+ i 1) (+ i 3)))
                (codepoint (string->number codepoint-str 16))
-               (char (number->char codepoint)))
+               (char (integer->char codepoint)))
           (if (member char exception)
-              (loop (append (string-downcase (substring str i (+ i 3))) (substring str chunk-start i) chunks) (+ 3 i) (+ 3 i))
-              (loop (append (string char) (substring str chunk-start i) chunks) (+ 3 i) (+ 3 i))))))
+              (loop (append (list (string-downcase (substring str i (+ i 3))) (substring str chunk-start i)) chunks) (+ 3 i) (+ 3 i))
+              (loop (append (list (string char) (substring str chunk-start i)) chunks) (+ 3 i) (+ 3 i))))))
      (else (loop chunks chunk-start (+ 1 i))))))
 
 (define (string->uri-object str)
-  (make-uri-object 'whole (decode-% str '(#\: #\/ #\? #\# #\[ #\] #\@ #\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=))))
+  (define is-data? (string-starts-with str "data:"))
+  (make-uri-object 'whole (if is-data? str (decode-% str '(#\: #\/ #\? #\# #\[ #\] #\@ #\! #\$ #\& #\' #\( #\) #\* #\+ #\, #\; #\=)))))
 
 (define (string-split str chars)
   (define len (string-length str))
@@ -660,7 +663,7 @@
          ((char=? #\/ char) 63)
          ((<= codepoint char9) (+ 52 (- codepoint char0)))
          ((<= codepoint charZ) (- codepoint charA))
-         ((<= codepoint charz) (+ 26 (- codepoint charz)))
+         ((<= codepoint charz) (+ 26 (- codepoint chara)))
          (else (validation-error))))))
   (define (base64-quadruple->bytevector str index)
     (define i1 (base64char->int (string-ref str index)))
@@ -683,7 +686,7 @@
     (define o3 (bitwise-and input #xFF))
     (cond
      ((and i3 i4) (bytevector o1 o2 o3))
-     (i3 (bytevector (bytevector o1 o2)))
+     (i3 (bytevector o1 o2))
      (else (bytevector o1))))
   (define len (string-length str))
   ;; how many `=' the string ends with
@@ -691,7 +694,7 @@
     (cond
      ((not (char=? #\= (string-ref str (- len 1))))
       0)
-     ((char=? #\= (string-ref str (- len 1)))
+     ((char=? #\= (string-ref str (- len 2)))
       2)
      (else 1)))
   ;; each 4 chars in base64 data string encodes 3 bytes of binary data
@@ -703,19 +706,46 @@
   (let loop ((i index)
              (j 0))
     (cond
-     ((>= i len) bv)
+     ((>= i len)
+      bv)
      (else (let* ((quadruple-bv (base64-quadruple->bytevector str i)))
              (bytevector-copy! bv j quadruple-bv)
              (loop (+ i 4)
                    (+ j (bytevector-length quadruple-bv))))))))
 
 (define (read-data-bytevector/url-encoded str index)
-  ;; TODO
-  #f)
+  (define strlen (string-length str))
+  (define bytecount
+    (let loop ((i index)
+               (count 0))
+      (cond
+       ((>= i strlen) count)
+       ((char=? #\% (string-ref str i)) (loop (+ 3 i)
+                                              (+ count 1)))
+       (else (loop (+ i 1)
+                   (+ count 1))))))
+  (define bv (make-bytevector bytecount))
+  (let loop ((i index)
+             (j 0))
+    (cond
+     ((>= i strlen) bv)
+     ((char=? #\% (string-ref str i))
+      (begin
+        (bytevector-u8-set! bv j (string->number (substring str (+ 1 i) (+ 3 i)) 16))
+        (loop (+ 3 i)
+              (+ 1 j))))
+     (else
+      (begin
+        (bytevector-u8-set! bv j (char->integer (string-ref str i)))
+        (loop (+ 1 i) (+ 1 j)))))))
 
 (define (bytevector->text charset content)
-  ;; TODO
-  #f)
+  (cond
+   ((or (string=? charset "US-ASCII")
+        (string=? charset "UTF-8"))
+    (utf8->string content))
+   (else
+    (raise (string-append "Unrecognized charset: " charset)))))
 
 (define do-parse-uri-data
   (letrec* ((restricted-name-first (or-pattern
@@ -742,9 +772,9 @@
                            (define match (match-part str index mediatype-param-pattern))
                            (if match
                                (let* ((param (substring str (+ 1 index) match))
-                                      (parts (string-split param #\=))
+                                      (parts (string-split param '(#\=)))
                                       (key (string->symbol (list-ref parts 0)))
-                                      (value (list-ref parts 0)))
+                                      (value (list-ref parts 1)))
                                  (values (cons key value) match))
                                (values #f index))))
             (parse-params (lambda (str index)
@@ -775,7 +805,7 @@
           (validation-error))
         (let* ((charset (cond
                          ((assoc 'charset params) => cdr)
-                         (else #f)))
+                         (else "US-ASCII")))
                (content (if base64?
                             (read-data-bytevector/base64 content (+ 1 index))
                             (read-data-bytevector/url-encoded content (+ 1 index))))
@@ -791,13 +821,20 @@
    (else (do-parse-uri-data (uri-path uri)))))
 
 (define (uri-reference? uri)
-  ;;TODO
-  #f)
+  (call/cc (lambda (k)
+             (with-exception-handler
+                 (lambda (err)
+                   (when (uri-error? err)
+                     (k #f)))
+               (lambda ()
+                 (uri-whole uri)
+                 #t)))))
 
 (define (uri-absolute? uri)
-  ;;TODO
-  #f)
+  (and (uri-reference? uri)
+       (uri-scheme uri)
+       (not (uri-fragment uri))))
 
 (define (uri-relative-reference? uri)
-  ;;TODO
-  #f)
+  (and (uri-reference? uri)
+       (not (uri-scheme uri))))
