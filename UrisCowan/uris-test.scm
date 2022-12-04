@@ -244,11 +244,6 @@
                  (lambda ()
                    (uri-whole (make-uri-object 'query "query=a")))))
 
-(define (do-test-%-decoding)
-  ;; TODO
-  #f
-  )
-
 (define (do-test-uri-merge)
   ;; TODO
   #f
@@ -348,9 +343,7 @@
                   ((mediatype data) (uri-parse-data uri)))
       (test-equal mediatype "text/plain;charset=US-ASCII")
       (test-assert (string? data))
-      (test-equal "fooo" data)))
-
-  )
+      (test-equal "fooo" data))))
 
 (test-begin "URIs")
 
@@ -368,8 +361,7 @@
   (do-test-uri-computation)
   (do-test-uri-part-computation-from-parent)
   (do-test-uri-part-computation-from-children)
-  (do-test-parsing-error)
-  (do-test-%-decoding))
+  (do-test-parsing-error))
 
 (test-group "uri parse path"
   (do-test-parse-path))

@@ -29,4 +29,9 @@
             uri-merge
             uri-parse-data
             uri-error?)
-    (include "uris-impl.scm"))
+    (include "impl/util.scm")
+    (include "impl/uri.scm")
+    (include "impl/patterns.scm")
+    (include "impl/uriparsepatterns.scm")
+    (include "impl/uriparse.scm")
+    (include "impl/dataparse.scm"))
