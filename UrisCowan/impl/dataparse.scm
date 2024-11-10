@@ -123,7 +123,7 @@
                            (if match
                                (let* ((param (substring str (+ 1 index) match))
                                       (parts (string-split param '(#\=)))
-                                      (key (string->symbol (list-ref parts 0)))
+                                      (key (list-ref parts 0))
                                       (value (list-ref parts 1)))
                                  (values (cons key value) match))
                                (values #f index))))
@@ -139,7 +139,7 @@
                                 (if match-beforeparams
                                     (let*-values (((params index) (parse-params str match-beforeparams)))
                                       (values (substring str 0 index) params index))
-                                    (values "text/plain;charset=US-ASCII" '((charset . "US-ASCII")) index))))
+                                    (values "text/plain;charset=US-ASCII" '(("charset" . "US-ASCII")) index))))
             (base64-marker-pattern (string-pattern ";base64"))
             (parse-base64? (lambda (str index)
                              (define match (match-part str index base64-marker-pattern))
@@ -154,7 +154,7 @@
                      (char=? #\, (string-ref content index)))
           (validation-error))
         (let* ((charset (cond
-                         ((assoc 'charset params) => cdr)
+                         ((assoc "charset" params) => cdr)
                          (else "US-ASCII")))
                (content (if base64?
                             (read-data-bytevector/base64 content (+ 1 index))
@@ -162,10 +162,10 @@
                (content (if textual?
                             (bytevector->text charset content)
                             content)))
-          (values mediatype content))))))
+          (values mediatype params content))))))
 
 (define (uri-parse-data uri)
   (cond
    ((not (equal? "data" (uri-scheme uri)))
-    (values #f #f))
+    (values #f #f #f))
    (else (do-parse-uri-data (uri-path uri)))))
