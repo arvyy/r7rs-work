@@ -30,4 +30,21 @@
       (test-equal 3692217600 (car (vector-ref leapseconds 27)))
       (test-equal 37 (cdr (vector-ref leapseconds 27)))))
 
+(test-group "Date constructor, getters"
+    (test-assert (date? (make-date 2020 1 1)))
+    (test-assert (date? (make-date 2020 2 29)))
+    (test-assert (date? (make-date 2000 2 29)))
+    (test-error (make-date 2020 1 32))
+    (test-error (make-date 2020 1 -1))
+    (test-error (make-date 2020 0 1))
+    (test-error (make-date 2020 13 1))
+    (test-error (make-date 1900 2 29))
+    (test-equal 2000 (date-year (make-date 2000 1 2)))
+    (test-equal 1 (date-month (make-date 2000 1 2)))
+    (test-equal 2 (date-day (make-date 2000 1 2)))
+    (let-values (((y m d) (date-ymd (make-date 2000 1 2))))
+      (test-equal 2000 y)
+      (test-equal 1 m)
+      (test-equal 2 d)))
+
 (test-end)

@@ -17,14 +17,11 @@
     (day date-day))
 
 (define (days-in-month is-leap-year month succ fail)
-  (let ((y (date-year date))
-        (m (date-month date))
-        (d (date-day date)))
-    (case m
+  (case month
       ((1 3 5 7 8 10 12) (succ 31))
       ((4 6 9 11)        (succ 30))
       ((2)               (succ (if is-leap-year 29 28)))
-      (else (fail)))))
+      (else (fail))))
 
 (define (leap-year? year)
   (cond
@@ -33,15 +30,17 @@
     (else (= 0 (floor-remainder year 400)))))
 
 (define (valid-date? date)
-  (let ((y (date-year date))
-        (m (date-month date))
-        (d (date-day date)))
-    (days-in-month (leap-year? y) m
-                   (lambda (d*) (= d d*))
-                   (lambda () #f))))
+  (let* ((y (date-year date))
+         (m (date-month date))
+         (d (date-day date))
+         (valid-month (<= 1 m 12))
+         (valid-day (days-in-month (leap-year? y) m
+                                   (lambda (d*) (<= 1 d d*))
+                                   (lambda () #f))))
+    (and valid-month valid-day)))
 
 (define (make-date year month day)
-  (let ((d (make-date year month day)))
+  (let ((d (make-date* year month day)))
     (unless (valid-date? d)
       (date-error "make-date called with invalid parameters" year month day))
     d))
@@ -72,8 +71,8 @@
 (define (zeller-congruence year month day)
   ;; variables named to match formula in wiki page
   (let* ((q day)
-         (m (if month >= 3) month (+ month 12))
-         (adjYear (if month >= 3) year (- year 1))
+         (m (if (>= month 3) month (+ month 12)))
+         (adjYear (if (>= month 3) year (- year 1)))
          (K (floor-remainder adjYear 100))
          (J (floor-quotient adjYear 100)))
     (floor-quotient
