@@ -22,13 +22,11 @@
         ; date-iso-week-year
         date-iso-weekday
 
-        #|
         date->iso8601
         date->mjd
         mjd->date
         date->rata-die
         rata-die->date
-        |#
 
         date=?
         date<?

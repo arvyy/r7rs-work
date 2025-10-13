@@ -32,12 +32,14 @@
 (define (valid-date? date)
   (let* ((y (date-year date))
          (m (date-month date))
-         (d (date-day date))
-         (valid-month (<= 1 m 12))
-         (valid-day (days-in-month (leap-year? y) m
-                                   (lambda (d*) (<= 1 d d*))
-                                   (lambda () #f))))
-    (and valid-month valid-day)))
+         (d (date-day date)))
+    (and (integer? y)
+         (integer? m)
+         (integer? d)
+         (<= 1 m 12)
+         (days-in-month (leap-year? y) m
+                        (lambda (d*) (<= 1 d d*))
+                        (lambda () #f)))))
 
 (define (make-date year month day)
   (let ((d (make-date* year month day)))
@@ -107,16 +109,35 @@
                     (- day-of-week-on-jan1 1))))
     (+ 1 (floor-quotient (+ days offset) 7))))
 
+(define (left-pad str c min-length)
+  (define pad-size (max 0 (- min-length (string-length str))))
+  (if (> pad-size 0)
+      (let ((pad (make-string pad-size c)))
+        (string-append pad str))
+      str))
+
+(define (date->iso8601 date)
+  (unless (date? date)
+    (date-error "date-iso8601 called with invalid parameters" date))
+  (let-values (((y m d) (date-ymd date)))
+    (string-append
+      (if (< y 0) "-" "")
+      (left-pad (number->string (abs y)) #\0 4)
+      "-"
+      (left-pad (number->string m) #\0 2)
+      "-"
+      (left-pad (number->string d) #\0 2))))
+
 (define (date=? date1 date2)
   (unless (and (date? date1) (date? date2))
-    (date-error "date=?" date1 date2))
+    (date-error "date=? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
                ((y2 m2 d2) (date-ymd date2)))
     (and (= y1 y2) (= m1 m2) (= d1 d2))))
 
 (define (date<? date1 date2)
   (unless (and (date? date1) (date? date2))
-    (date-error "date<?" date1 date2))
+    (date-error "date<? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
                ((y2 m2 d2) (date-ymd date2)))
     (cond
@@ -128,7 +149,7 @@
 
 (define (date<? date1 date2)
   (unless (and (date? date1) (date? date2))
-    (date-error "date<=?" date1 date2))
+    (date-error "date<=? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
                ((y2 m2 d2) (date-ymd date2)))
     (cond
@@ -140,7 +161,7 @@
 
 (define (date>? date1 date2)
   (unless (and (date? date1) (date? date2))
-    (date-error "date>?" date1 date2))
+    (date-error "date>? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
                ((y2 m2 d2) (date-ymd date2)))
     (cond
@@ -152,7 +173,7 @@
 
 (define (date>=? date1 date2)
   (unless (and (date? date1) (date? date2))
-    (date-error "date>=?" date1 date2))
+    (date-error "date>=? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
                ((y2 m2 d2) (date-ymd date2)))
     (cond

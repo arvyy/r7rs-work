@@ -38,6 +38,9 @@
     (test-error (make-date 2020 1 -1))
     (test-error (make-date 2020 0 1))
     (test-error (make-date 2020 13 1))
+    (test-error (make-date 2020.1 1 1))
+    (test-error (make-date 2020 1.1 1))
+    (test-error (make-date 2020 1 1.1))
     (test-error (make-date 1900 2 29))
     (test-equal 2000 (date-year (make-date 2000 1 2)))
     (test-equal 1 (date-month (make-date 2000 1 2)))
@@ -46,5 +49,12 @@
       (test-equal 2000 y)
       (test-equal 1 m)
       (test-equal 2 d)))
+
+(test-group "Date->ISO8601"
+    (test-equal "2020-01-01" (date->iso8601 (make-date 2020 1 1)))
+    (test-equal "2020-11-12" (date->iso8601 (make-date 2020 11 12)))
+    (test-equal "0000-01-01" (date->iso8601 (make-date 0 1 1)))
+    (test-equal "-0001-01-01" (date->iso8601 (make-date -1 1 1)))
+    (test-equal "99999-01-01" (date->iso8601 (make-date 99999 1 1))))
 
 (test-end)
