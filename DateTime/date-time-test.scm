@@ -72,6 +72,13 @@
     (test-equal 53 (date-iso-week (make-date 2010 1 2)))
     (test-equal 2009 (date-iso-week-year (make-date 2010 1 2))))
 
+(test-group "Rata Die"
+    (test-equal 1 (date->rata-die (make-date 1 1 1)))
+    (test-equal 739539 (date->rata-die (make-date 2025 10 15)))
+    (test-equal -1 (date->rata-die (make-date 0 12 30)))
+    ;; TODO rata-die->date
+    )
+
 (test-group "Date comparators"
     (test-assert (not (date=? (make-date 2021 1 1) (make-date 2020 1 1))))
     (test-assert (not (date=? (make-date 2020 2 1) (make-date 2020 1 1))))

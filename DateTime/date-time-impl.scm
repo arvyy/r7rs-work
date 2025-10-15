@@ -225,3 +225,39 @@
       ((> m1 m2) #t)
       ((< m1 m2) #f)
       (else (>= d1 d2)))))
+
+;; helpers for converting between iso date and rata / julian
+(define days/4y   (+ (* 4 365) 1))
+(define days/100y (+ (* 100 365) 24))
+(define days/400y (+ (* 4 days/100y) 1))
+
+;; handles only dates with positive year
+(define (date->rata-die* date)
+  (define (rd-for-year year)
+    (let* (;; subtract the precalculated days of current year; those will be added by days-since-year-start
+           (curr-year-adjust (if (leap-year? year) -366 -365))
+           (part400s (* days/400y (floor-quotient year 400)))
+           (year (floor-remainder year 400))
+           (part100s (* days/100y (floor-quotient year 100)))
+           (year (floor-remainder year 100))
+           (part4s (* days/4y (floor-quotient year 4)))
+           (year (floor-remainder year 4))
+           (rest (* year 365)))
+        (+ part400s part100s part4s rest curr-year-adjust)))
+  (let ((year (date-year date)))
+    (+ (rd-for-year year) (days-since-year-start date))))
+
+(define (date->rata-die date)
+  (unless (date? date)
+    (date-error "date->rata-die called with invalid parameters" date))
+  (let ((year (date-year date)))
+    (if (>= year 0)
+        (date->rata-die* date)
+        ;; slowpath for negative date: compute n such that n*400 + year > 0
+        ;; then the result is difference between rd of n*400 and n*400 + year
+        (let* ((month (date-month date))
+               (day (date-day date))
+               (n (+ 1 (floor-quotient (abs year) 400)))
+               (rd1 (date->data-die* (make-date (+ year (* n 400)) month day)))
+               (rd2 (date->data-die* (make-date (* n 400) month day))))
+          (- rd1 rd2)))))
