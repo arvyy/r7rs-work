@@ -57,4 +57,45 @@
     (test-equal "-0001-01-01" (date->iso8601 (make-date -1 1 1)))
     (test-equal "99999-01-01" (date->iso8601 (make-date 99999 1 1))))
 
+(test-group "Week & weekday calculation"
+    (test-equal 0 (date-weekday (make-date 2025 10 12)))
+    (test-equal 1 (date-weekday (make-date 2025 10 13)))
+    (test-equal 7 (date-iso-weekday (make-date 2025 10 12)))
+    (test-equal 1 (date-iso-weekday (make-date 2025 10 13)))
+
+    (test-equal 42 (date-iso-week (make-date 2025 10 14)))
+    (test-equal 2025 (date-iso-week-year (make-date 2025 10 14)))
+
+    (test-equal 1 (date-iso-week (make-date 2008 12 29)))
+    (test-equal 2009 (date-iso-week-year (make-date 2008 12 29)))
+
+    (test-equal 53 (date-iso-week (make-date 2010 1 2)))
+    (test-equal 2009 (date-iso-week-year (make-date 2010 1 2))))
+
+(test-group "Date comparators"
+    (test-assert (not (date=? (make-date 2021 1 1) (make-date 2020 1 1))))
+    (test-assert (not (date=? (make-date 2020 2 1) (make-date 2020 1 1))))
+    (test-assert (not (date=? (make-date 2020 1 2) (make-date 2020 1 1))))
+    (test-assert (date=? (make-date 2020 1 1) (make-date 2020 1 1)))
+
+    (test-assert (date<? (make-date 2020 2 2) (make-date 2021 1 1)))
+    (test-assert (date<? (make-date 2020 2 2) (make-date 2020 3 1)))
+    (test-assert (date<? (make-date 2020 2 2) (make-date 2020 2 3)))
+    (test-assert (not (date<? (make-date 2020 2 2) (make-date 2020 2 2))))
+
+    (test-assert (date<=? (make-date 2020 2 2) (make-date 2021 1 1)))
+    (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 3 1)))
+    (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 2 3)))
+    (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 2 2)))
+
+    (test-assert (date>? (make-date 2021 1 1) (make-date 2020 2 2)))
+    (test-assert (date>? (make-date 2020 3 1) (make-date 2020 2 2)))
+    (test-assert (date>? (make-date 2020 2 3) (make-date 2020 2 2)))
+    (test-assert (not (date>? (make-date 2020 2 2) (make-date 2020 2 2))))
+
+    (test-assert (date>=? (make-date 2021 1 1) (make-date 2020 2 2)))
+    (test-assert (date>=? (make-date 2020 3 1) (make-date 2020 2 2)))
+    (test-assert (date>=? (make-date 2020 2 3) (make-date 2020 2 2)))
+    (test-assert (date>=? (make-date 2020 2 2) (make-date 2020 2 2))))
+
 (test-end)

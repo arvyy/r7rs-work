@@ -1,6 +1,7 @@
 (define-library
     (date-time)
     (import (scheme base)
+            (gauche base)  ;; for debugging, TODO remove
             ;;
             )
     (export
@@ -19,7 +20,7 @@
 
         date-weekday
         date-iso-week
-        ; date-iso-week-year
+        date-iso-week-year
         date-iso-weekday
 
         date->iso8601

@@ -77,13 +77,14 @@
          (adjYear (if (>= month 3) year (- year 1)))
          (K (floor-remainder adjYear 100))
          (J (floor-quotient adjYear 100)))
-    (floor-quotient
+    (floor-remainder
       (+ q
          (floor-quotient (* 13 (+ m 1))
                          5)
          K
          (floor-quotient K 4)
-         (floor-quotient J 4))
+         (floor-quotient J 4)
+         (- (* 2 J)))
       7)))
 
 (define (days-since-year-start date)
@@ -100,14 +101,56 @@
 (define (date-iso-week date)
   (unless (date? date)
     (date-error "date-iso-week called with invalid parameters" date))
-  (let ((days (days-since-year-start date))
-        (day-of-week-on-jan1 (date-iso-weekday (make-date* (date-year date) 1 1)))
-        ;; first week is the one which has first thursday in the new year
-        ;; offset is amount to add to `days` to make relative to monday of first week (which could be in prev year)
-        (offset (if (>= 5 day-of-week-on-jan1)
-                    (- 8 day-of-week-on-jan1)
-                    (- day-of-week-on-jan1 1))))
-    (+ 1 (floor-quotient (+ days offset) 7))))
+  (call-with-values
+    (lambda () (date-iso-week* date))
+    (lambda (year week) week)))
+
+(define (date-iso-week-year date)
+  (unless (date? date)
+    (date-error "date-iso-week-year called with invalid parameters" date))
+  (call-with-values
+    (lambda () (date-iso-week* date))
+    (lambda (year week) year)))
+
+;; returns two values -- week year and week number for the given date
+(define (date-iso-week* date)
+  ;; 3 cases to consider
+  ;; if it's <= 3rd jan, it might belong to last year's week year
+  ;; if it's >= 29 dec, it might belong to next year's week year
+  ;; or it is this year's week year
+  (define-values (year month day) (date-ymd date))
+  (define weekday (date-iso-weekday date))
+  (define year-offset
+    (cond
+      ((and (= month 1) (<= day 3) (>= (- weekday day) 4)) -1)
+      ((and (= month 12) (>= day 29) (>= (- day weekday) 28)) 1)
+      (else 0)))
+
+  (case year-offset
+    ((1)
+     (values (+ 1 year) 1))
+    ((-1)
+     (let* ((day-of-week-on-jan1 (date-iso-weekday (make-date* (- (date-year date) 1) 1 1)))
+            ;; first week is the one which has first thursday in the new year
+            ;; offset is amount to add to `days` to make relative to monday of first week
+            (offset (if (>= 5 day-of-week-on-jan1)
+                        (- day-of-week-on-jan1 1)
+                        (- 1 day-of-week-on-jan1)))
+            (day-count (+ offset 
+                          (if (leap-year? (- year 1)) 366 365)
+                          day)))
+       (values (- year 1)
+               (+ 1 (floor-quotient day-count 7)))))
+    (else
+      (let* ((day-of-week-on-jan1 (date-iso-weekday (make-date* (date-year date) 1 1)))
+             ;; first week is the one which has first thursday in the new year
+             ;; offset is amount to add to `days` to make relative to monday of first week (which could be in prev year)
+             (offset (if (>= 5 day-of-week-on-jan1)
+                         (- day-of-week-on-jan1 1)
+                         (- 1 day-of-week-on-jan1)))
+             (day-count (+ (days-since-year-start date) offset)))
+        (values year
+                (+ 1 (floor-quotient day-count 7)))))))
 
 (define (left-pad str c min-length)
   (define pad-size (max 0 (- min-length (string-length str))))
@@ -147,7 +190,7 @@
       ((> m1 m2) #f)
       (else (< d1 d2)))))
 
-(define (date<? date1 date2)
+(define (date<=? date1 date2)
   (unless (and (date? date1) (date? date2))
     (date-error "date<=? called with invalid parameters" date1 date2))
   (let-values (((y1 m1 d1) (date-ymd date1))
