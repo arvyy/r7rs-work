@@ -3,7 +3,9 @@
         (date-time)
         (date-time tzfile)
         (date-time leapsecondsfile)
-        (srfi 64))
+        (srfi 64)
+        (gauche base) ;; for debugging, TODO remove
+        )
 
 
 (test-begin "date-time")
@@ -76,8 +78,14 @@
     (test-equal 1 (date->rata-die (make-date 1 1 1)))
     (test-equal 739539 (date->rata-die (make-date 2025 10 15)))
     (test-equal -1 (date->rata-die (make-date 0 12 30)))
-    ;; TODO rata-die->date
-    )
+    (test-equal -365 (date->rata-die (make-date 0 1 1)))
+    (test-equal -366 (date->rata-die (make-date -1 12 31)))
+
+    (test-assert (date=? (make-date 1 1 1) (rata-die->date 1)))
+    (test-assert (date=? (make-date 2025 10 15) (rata-die->date 739539)))
+    (test-assert (date=? (make-date 0 12 30) (rata-die->date -1)))
+    (test-assert (date=? (make-date 0 1 1) (rata-die->date -365)))
+    (test-assert (date=? (make-date -1 12 31) (rata-die->date -366))))
 
 (test-group "Date comparators"
     (test-assert (not (date=? (make-date 2021 1 1) (make-date 2020 1 1))))

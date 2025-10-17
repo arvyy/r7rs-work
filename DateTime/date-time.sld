@@ -2,6 +2,7 @@
     (date-time)
     (import (scheme base)
             (gauche base)  ;; for debugging, TODO remove
+            (scheme write) ;; for debugging, TODO remove
             ;;
             )
     (export

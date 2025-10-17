@@ -1,3 +1,4 @@
+
 ;; errors
 (define-record-type <date-time-error>
   (make-date-time-error message args)
@@ -15,6 +16,10 @@
     (year date-year)
     (month date-month)
     (day date-day))
+
+;; for debuggging, TODO remove
+(define-method write-object ((date <date>) port)
+  (write (date->iso8601 date) port))
 
 (define (days-in-month is-leap-year month succ fail)
   (case month
@@ -97,6 +102,17 @@
         (days-in-month is-leap i
                        (lambda (d) (loop (+ days d) (+ 1 i)))
                        (lambda () (error "Internal date-time implementation bug"))))))
+
+(define (apply-days-after-year-start year days)
+  (define is-leap (leap-year? year))
+  (let loop ((days days)
+             (month 1))
+    (days-in-month is-leap month
+                   (lambda (d) (if (> days d)
+                                   (loop (- days d)
+                                         (+ 1 month))
+                                   (make-date year month days)))
+                   (lambda () (error "Internal date-time implementation bug")))))
 
 (define (date-iso-week date)
   (unless (date? date)
@@ -254,10 +270,37 @@
     (if (>= year 0)
         (date->rata-die* date)
         ;; slowpath for negative date: compute n such that n*400 + year > 0
-        ;; then the result is difference between rd of n*400 and n*400 + year
+        ;; then the result is difference between rd of n*400 + 1 and n*400 + year
         (let* ((month (date-month date))
                (day (date-day date))
                (n (+ 1 (floor-quotient (abs year) 400)))
-               (rd1 (date->data-die* (make-date (+ year (* n 400)) month day)))
-               (rd2 (date->data-die* (make-date (* n 400) month day))))
-          (- rd1 rd2)))))
+               (rd1 (date->rata-die* (make-date (+ year (* n 400)) month day)))
+               (rd2 (date->rata-die* (make-date (+ 1 (* n 400)) 1 1))))
+          (+ 1 (- rd1 rd2))))))
+
+;; handles only positive RD
+(define (rata-die->date* rd)
+  (let* ((rd (- rd 1))
+         (part400s (* 400 (floor-quotient rd days/400y)))
+         (rd (floor-remainder rd days/400y))
+         (part100s (* 100 (floor-quotient rd days/100y)))
+         (rd (floor-remainder rd days/100y))
+         (part4s (* 4 (floor-quotient rd days/4y)))
+         (rd (floor-remainder rd days/4y))
+         (rest (floor-quotient rd 365))
+         (rd (floor-remainder rd 365))
+         (year (+ part400s part100s part4s rest)))
+    (apply-days-after-year-start (+ 1 year) (+ 1 rd))))
+
+(define (rata-die->date rd)
+  (unless (integer? rd)
+    (date-error "rata-die->date called with invalid parameters" rd))
+  (if (>= rd 1)
+      (rata-die->date* rd)
+      ;; slowpath for rd less than 1: compute n such that n*days/400y + rd > 0
+      ;; then the result is computing date for n*days/400y + rd and 
+      ;; moving result's year value backwards by n * 400
+      (let* ((n (+ 1 (floor-quotient (abs rd) days/400y)))
+             (date* (rata-die->date* (+ (* n days/400y) rd)))
+             (year (- (date-year date*) (* n 400))))
+        (make-date* year (date-month date*) (date-day date*)))))
