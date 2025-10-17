@@ -1,4 +1,3 @@
-
 ;; errors
 (define-record-type <date-time-error>
   (make-date-time-error message args)
@@ -9,7 +8,10 @@
 (define (date-error message . args)
   (raise (make-date-time-error message args)))
 
-;; date
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Dates
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (define-record-type <date>
     (make-date* year month day)
     date?
@@ -314,5 +316,88 @@
 
 (define (mjd->date mjd)
   (unless (integer? mjd)
-    (date-error "mjd->date called with invalid parameters" date))
+    (date-error "mjd->date called with invalid parameters" mjd))
   (rata-die->date (+ mjd-rd-offset mjd)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Clock times
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-record-type <clock-time>
+  (make-clock-time* hour minute second)
+  clock-time?
+  (hour clock-time-hour)
+  (minute clock-time-minute)
+  (second clock-time-second))
+
+(define (make-clock-time hour minute second)
+  (unless (and (integer? hour)
+               (<= 0 hour 23)
+               (integer? minute)
+               (<= 0 minute 59)
+               (rational? second)
+               (exact? second)
+               (<= 0 second)
+               (< second 61))
+    (date-error "make-clock-time called with invalid parameters" hour minute second))
+  (make-clock-time* hour minute second))
+
+(define (clock-time-hms clock-time)
+  (unless (clock-time? clock-time)
+    (date-error "clock-time-hms called with invalid parameters" clock-time))
+  (values (clock-time-hour clock-time)
+          (clock-time-minute clock-time)
+          (clock-time-second clock-time)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Moment
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-record-type <moment>
+  (make-moment* date second)
+  moment?
+  (date moment-date)
+  (second moment-second-of-day))
+
+(define (make-moment date second)
+  (unless (and (date? date)
+               (real? second)
+               (exact? second)
+               (<= 0 second)
+               (< second 86400))
+    (date-error "make-moment called with invalid parameters" date second))
+  (make-moment* date second))
+
+(define (moment=? m1 m2)
+  (unless (and (moment? m1) (moment? m2))
+    (date-error "moment=? called with invalid parameters" m1 m2))
+  (and (date=? (moment-date m1) (moment-date m2))
+       (= (moment-second-of-day m1) (moment-second-of-day m2))))
+
+(define (moment<? m1 m2)
+  (unless (and (moment? m1) (moment? m2))
+    (date-error "moment<? called with invalid parameters" m1 m2))
+  (or (date<? (moment-date m1) (moment-date m2))
+      (and (date=? (moment-date m1) (moment-date m2))
+           (< (moment-second-of-day m1) (moment-second-of-day m2)))))
+
+(define (moment<=? m1 m2)
+  (unless (and (moment? m1) (moment? m2))
+    (date-error "moment<=? called with invalid parameters" m1 m2))
+  (or (date<? (moment-date m1) (moment-date m2))
+      (and (date=? (moment-date m1) (moment-date m2))
+           (<= (moment-second-of-day m1) (moment-second-of-day m2)))))
+
+(define (moment>? m1 m2)
+  (unless (and (moment? m1) (moment? m2))
+    (date-error "moment>? called with invalid parameters" m1 m2))
+  (or (date>? (moment-date m1) (moment-date m2))
+      (and (date=? (moment-date m1) (moment-date m2))
+           (> (moment-second-of-day m1) (moment-second-of-day m2)))))
+
+(define (moment>=? m1 m2)
+  (unless (and (moment? m1) (moment? m2))
+    (date-error "moment>=? called with invalid parameters" m1 m2))
+  (or (date>? (moment-date m1) (moment-date m2))
+      (and (date=? (moment-date m1) (moment-date m2))
+           (>= (moment-second-of-day m1) (moment-second-of-day m2)))))

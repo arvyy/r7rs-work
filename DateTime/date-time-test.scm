@@ -10,6 +10,8 @@
 
 (test-begin "date-time")
 
+;;; timezone / leap seconds files
+
 (test-group "Test tzfile reader"
     (let ((tzfile (let ((in (open-binary-input-file "testdata/Vilnius")))
                     (dynamic-wind
@@ -31,6 +33,8 @@
       (test-equal 10 (cdr (vector-ref leapseconds 0)))
       (test-equal 3692217600 (car (vector-ref leapseconds 27)))
       (test-equal 37 (cdr (vector-ref leapseconds 27)))))
+
+;;; dates
 
 (test-group "Date constructor, getters"
     (test-assert (date? (make-date 2020 1 1)))
@@ -119,5 +123,25 @@
     (test-assert (date>=? (make-date 2020 3 1) (make-date 2020 2 2)))
     (test-assert (date>=? (make-date 2020 2 3) (make-date 2020 2 2)))
     (test-assert (date>=? (make-date 2020 2 2) (make-date 2020 2 2))))
+
+;; clock-time
+
+(test-group "clock-time"
+    (test-assert (clock-time? (make-clock-time 23 0 11/10)))
+    (test-error (make-clock-time 24 1 1))
+    (test-error (make-clock-time -1 1 1))
+    (test-error (make-clock-time 23 100 1))
+    (test-error (make-clock-time 23 -1 1))
+    (test-error (make-clock-time 23 1 -1))
+    (test-error (make-clock-time 23 1 1+1i))
+
+    (test-equal 23 (clock-time-hour (make-clock-time 23 1 2)))
+    (test-equal 1 (clock-time-minute (make-clock-time 23 1 2)))
+    (test-equal 2 (clock-time-second (make-clock-time 23 1 2)))
+
+    (let-values (((h m s) (clock-time-hms (make-clock-time 23 1 2))))
+      (test-equal 23 h)
+      (test-equal 1 m)
+      (test-equal 2 s)))
 
 (test-end)

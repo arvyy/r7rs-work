@@ -12,6 +12,7 @@
         date-time-error-message
         date-time-error-args
 
+        ;; date
         make-date
         date?
         date-ymd
@@ -35,6 +36,26 @@
         date<=?
         date>?
         date>=?
+
+        ;; clock-time
+        make-clock-time
+        clock-time?
+        clock-time-hour
+        clock-time-minute
+        clock-time-second
+        clock-time-hms
+
+        ;; moment
+        make-moment
+        moment?
+        moment-date
+        moment-second-of-day
+
+        moment=?
+        moment<?
+        moment<=?
+        moment>?
+        moment>=?
 
         ;;
         )
