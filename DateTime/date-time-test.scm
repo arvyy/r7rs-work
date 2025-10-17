@@ -87,6 +87,13 @@
     (test-assert (date=? (make-date 0 1 1) (rata-die->date -365)))
     (test-assert (date=? (make-date -1 12 31) (rata-die->date -366))))
 
+(test-group "MJD"
+    (test-equal 0 (date->mjd (make-date 1858 11 17)))
+    (test-equal 60965 (date->mjd (make-date 2025 10 17)))
+
+    (test-assert (date=? (make-date 1858 11 17) (mjd->date 0)))
+    (test-assert (date=? (make-date 2025 10 17) (mjd->date 60965))))
+
 (test-group "Date comparators"
     (test-assert (not (date=? (make-date 2021 1 1) (make-date 2020 1 1))))
     (test-assert (not (date=? (make-date 2020 2 1) (make-date 2020 1 1))))

@@ -304,3 +304,15 @@
              (date* (rata-die->date* (+ (* n days/400y) rd)))
              (year (- (date-year date*) (* n 400))))
         (make-date* year (date-month date*) (date-day date*)))))
+
+(define mjd-rd-offset (- 2400000 1721424))
+
+(define (date->mjd date)
+  (unless (date? date)
+    (date-error "date->mjd called with invalid parameters" date))
+  (- (date->rata-die date) mjd-rd-offset))
+
+(define (mjd->date mjd)
+  (unless (integer? mjd)
+    (date-error "mjd->date called with invalid parameters" date))
+  (rata-die->date (+ mjd-rd-offset mjd)))
