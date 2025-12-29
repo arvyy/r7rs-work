@@ -89,7 +89,7 @@
 ;; read type definitions as a vector, where each element is a list (offset dst-flag timezone-string)
 (define (read-timetypes in count abbr-byte-count)
   (define (read-type)
-    (vector 
+    (vector
       (read-n-byte-signed-int in 4)
       (read-u8 in)
       (read-u8 in)))
@@ -120,10 +120,10 @@
         ((>= i n) value))))
 
 (define (read-n-byte-signed-int in n)
-  (let ((max-value (- (expt 2 (* 4 (- n 1))) 1))
+  (let ((max-value (- (expt 2 (* 8 (- n 1))) 1))
         (unsigned-value (read-n-byte-int in n)))
     (if (> unsigned-value max-value)
-        (- unsigned-value (expt 2 (* 4 n)))
+        (- unsigned-value (expt 2 (* 8 n)))
         unsigned-value)))
 
 (define (make-vector* n fill-proc)

@@ -23,6 +23,9 @@
 (define-method write-object ((date <date>) port)
   (write (date->iso8601 date) port))
 
+(define-method write-object ((err <date-time-error>) port)
+  (write (cons (date-time-error-message err) (date-time-error-args err)) port))
+
 (define (days-in-month is-leap-year month succ fail)
   (case month
       ((1 3 5 7 8 10 12) (succ 31))
@@ -62,7 +65,7 @@
 (define (date-weekday date)
   (unless (date? date)
     (date-error "date-weekday called with invalid parameters" date))
-  (call-with-values 
+  (call-with-values
     (lambda () (date-ymd date))
     (lambda (year month day)
       (let ((num (zeller-congruence year month day)))
@@ -154,7 +157,7 @@
             (offset (if (>= 5 day-of-week-on-jan1)
                         (- day-of-week-on-jan1 1)
                         (- 1 day-of-week-on-jan1)))
-            (day-count (+ offset 
+            (day-count (+ offset
                           (if (leap-year? (- year 1)) 366 365)
                           day)))
        (values (- year 1)
@@ -300,7 +303,7 @@
   (if (>= rd 1)
       (rata-die->date* rd)
       ;; slowpath for rd less than 1: compute n such that n*days/400y + rd > 0
-      ;; then the result is computing date for n*days/400y + rd and 
+      ;; then the result is computing date for n*days/400y + rd and
       ;; moving result's year value backwards by n * 400
       (let* ((n (+ 1 (floor-quotient (abs rd) days/400y)))
              (date* (rata-die->date* (+ (* n days/400y) rd)))
@@ -308,6 +311,7 @@
         (make-date* year (date-month date*) (date-day date*)))))
 
 (define mjd-rd-offset (- 2400000 1721424))
+(define unix-epoch-rd (date->rata-die (make-date 1970 1 1)))
 
 (define (date->mjd date)
   (unless (date? date)
@@ -401,3 +405,152 @@
   (or (date>? (moment-date m1) (moment-date m2))
       (and (date=? (moment-date m1) (moment-date m2))
            (>= (moment-second-of-day m1) (moment-second-of-day m2)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Timestamp
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-record-type <timestamp>
+    (make-timestamp* date time timezone fold)
+    timestamp?
+    (date timestamp-date)s
+    (time timestamp-clock-time)
+    (timezone timestamp-timezone)
+    (fold timestamp-fold))
+
+(define (timestamp-ymd timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-ymd called with invalid parameters" timestamp))
+    (date-ymd (timestamp-date timestamp)))
+
+(define (timestamp-year timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-year called with invalid parameters" timestamp))
+    (date-year (timestamp-date timestamp)))
+
+(define (timestamp-month timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-month called with invalid parameters" timestamp))
+    (date-month (timestamp-date timestamp)))
+
+(define (timestamp-day timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-day called with invalid parameters" timestamp))
+    (date-day (timestamp-date timestamp)))
+
+(define (timestamp-hms timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-hms called with invalid parameters" timestamp))
+    (clock-time-hms (timestamp-clock-time timestamp)))
+
+(define (timestamp-hour timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-hour called with invalid parameters" timestamp))
+    (clock-time-hour (timestamp-clock-time timestamp)))
+
+(define (timestamp-minute timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-minute called with invalid parameters" timestamp))
+    (clock-time-minute (timestamp-clock-time timestamp)))
+
+(define (timestamp-second timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-second called with invalid parameters" timestamp))
+    (clock-time-second (timestamp-clock-time timestamp)))
+
+(define make-timestamp
+    (case-lambda
+        ((year month day hour minute second timezone)
+         (date+clock-time->timestamp (make-date year month day) (make-clock-time hour minute second) timezone 0))
+        ((year month day hour minute second timezone fold)
+         (date+clock-time->timestamp (make-date year month day) (make-clock-time hour minute second) timezone fold))))
+
+(define date+clock-time->timestamp
+    (case-lambda
+        ((date time timezone)
+         (date+clock-time->timestamp date time timezone 0))
+        ((date time timezone fold)
+         (unless (and (date? date)
+                      (clock-time? time)
+                      (timezone? timezone)
+                      (number? fold)
+                      (or (= 0 fold) (= 1 fold)))
+           (date-error "date+clock-time->timestamp called with invalid parameters" date time timezone fold))
+        (let ((timestamp (make-timestamp* date time timezone fold)))
+          (validate-timestamp-time-in-timezone
+              timestamp
+              (lambda _ (date-error "date+clock-time->timestamp called with invalid local time for the given timezone" date time timezone fold))
+              (lambda _ (date-error "date+clock-time->timestamp called with invalid fold value for given local time in the given timezone" date time timezone fold)))
+          (validate-timestamp-leapsecond timestamp (lambda _ #t))
+          timestamp))))
+
+;; returns count of seconds (excluding leap) since 1970-01-01 in current timezone (ie, not UTC timezone)
+;; used to find offset from timezone rules vector
+(define (timestamp->local-timepoint timestamp)
+    (define days (- (date->rata-die (timestamp-date timestamp)) unix-epoch-rd))
+    (define-values (h m s) (timestamp-hms timestamp))
+    (+ (* days 86400) (* h 3600) (* m 60) s))
+
+;; not all hours / minutes are valid during transition between DST
+;; if fold is 1, also tests if there is possible time overlap
+(define (validate-timestamp-time-in-timezone timestamp err-bad-time err-bad-fold)
+    (let* ((local-timepoint (timestamp->local-timepoint timestamp))
+           (tz (timestamp-timezone timestamp))
+           (offset (find-offset tz local-timepoint))
+           (fold (timestamp-fold timestamp)))
+      (when (= 0 (vector-length offset))
+          (err-bad-time))
+      (when (and (= 1 fold) (< (vector-length offset) 2))
+          (err-bad-fold))))
+
+(define (validate-timestamp-leapsecond timestamp err)
+    ;; TODO
+    #t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Timezones
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define (utc-offset-timezone dt)
+  (unless (dt? dt)
+    (date-error "utc-offset-timezone called with invalid parameters" dt))
+  ;; TODO
+  #f)
+
+(define tzmap '())
+
+(define (tz-timezones)
+  '("Vilnius"))
+
+(define (tz-timezone name)
+  (unless (string? name)
+    (date-error "tz-timezone called with invalid parameters" name))
+  (cond
+    ((assoc name tzmap) => cdr)
+    (else
+      (let ((tz (load-timezone! name)))
+        (set! tzmap (cons (cons name tz) tzmap))
+        tz))))
+
+(define (load-timezone! name)
+  (define port #f)
+  (dynamic-wind
+    (lambda () (set! port (open-binary-input-file (string-append "./testdata/" name))))
+    (lambda () (tzfile->timezone (read-tz-file port)))
+    (lambda () (close-port port))))
+
+(define (tzfile->timezone tzf)
+  (create-timezone-from-tz-transitions (tzfile-time-transitions tzf)))
+
+(define (system-timezone)
+  (tz-timezone "Vilnius"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Time deltas
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-record-type <dt>
+  (make-dt)
+  dt?
+  ;; TODO
+  )

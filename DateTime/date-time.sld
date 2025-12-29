@@ -1,6 +1,9 @@
 (define-library
     (date-time)
     (import (scheme base)
+            (scheme file)
+            (date-time timezone)
+            (date-time tzfile)
             (gauche base)  ;; for debugging, TODO remove
             (scheme write) ;; for debugging, TODO remove
             ;;
@@ -56,6 +59,41 @@
         moment<=?
         moment>?
         moment>=?
+
+        ;; timestamp
+        make-timestamp
+        date+clock-time->timestamp
+        timestamp?
+        ;; TODO
+        ;; moment->timestamp
+        ;; timestamp->moment
+        ;; timestamp-in-timezone
+        ;; posix-time->utc-timestamp
+        ;; posix-time->utc-timestamp
+        ;; timestamp->utc-posix-time
+        timestamp-date
+        timestamp-ymd
+        timestamp-year
+        timestamp-month
+        timestamp-day
+        timestamp-clock-time
+        timestamp-hms
+        timestamp-hour
+        timestamp-minute
+        timestamp-second
+        timestamp-timezone
+        timestamp-fold
+        timestamp-timezone-offset
+        ;; TODO
+        ;; timestamp->iso-8601
+
+        ;; timezone
+        timezone?
+        utc-timezone
+        utc-offset-timezone
+        system-timezone
+        tz-timezone
+        tz-timezones
 
         ;;
         )

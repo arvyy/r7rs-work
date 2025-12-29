@@ -8,7 +8,7 @@
         )
 
 
-(test-begin "date-time")
+(test-begin "Date-Time")
 
 ;;; timezone / leap seconds files
 
@@ -108,25 +108,37 @@
     (test-assert (date<? (make-date 2020 2 2) (make-date 2020 3 1)))
     (test-assert (date<? (make-date 2020 2 2) (make-date 2020 2 3)))
     (test-assert (not (date<? (make-date 2020 2 2) (make-date 2020 2 2))))
+    (test-assert (not (date<? (make-date 2021 1 1) (make-date 2020 2 2))))
+    (test-assert (not (date<? (make-date 2020 3 1) (make-date 2020 2 2))))
+    (test-assert (not (date<? (make-date 2020 2 3) (make-date 2020 2 2))))
 
     (test-assert (date<=? (make-date 2020 2 2) (make-date 2021 1 1)))
     (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 3 1)))
     (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 2 3)))
     (test-assert (date<=? (make-date 2020 2 2) (make-date 2020 2 2)))
+    (test-assert (not (date<=? (make-date 2021 1 1) (make-date 2020 2 2))))
+    (test-assert (not (date<=? (make-date 2020 3 1) (make-date 2020 2 2))))
+    (test-assert (not (date<=? (make-date 2020 2 3) (make-date 2020 2 2))))
 
     (test-assert (date>? (make-date 2021 1 1) (make-date 2020 2 2)))
     (test-assert (date>? (make-date 2020 3 1) (make-date 2020 2 2)))
     (test-assert (date>? (make-date 2020 2 3) (make-date 2020 2 2)))
     (test-assert (not (date>? (make-date 2020 2 2) (make-date 2020 2 2))))
+    (test-assert (not (date>? (make-date 2020 2 2) (make-date 2021 1 1))))
+    (test-assert (not (date>? (make-date 2020 2 2) (make-date 2020 3 1))))
+    (test-assert (not (date>? (make-date 2020 2 2) (make-date 2020 2 3))))
 
     (test-assert (date>=? (make-date 2021 1 1) (make-date 2020 2 2)))
     (test-assert (date>=? (make-date 2020 3 1) (make-date 2020 2 2)))
     (test-assert (date>=? (make-date 2020 2 3) (make-date 2020 2 2)))
-    (test-assert (date>=? (make-date 2020 2 2) (make-date 2020 2 2))))
+    (test-assert (date>=? (make-date 2020 2 2) (make-date 2020 2 2)))
+    (test-assert (not (date>=? (make-date 2020 2 2) (make-date 2021 1 1))))
+    (test-assert (not (date>=? (make-date 2020 2 2) (make-date 2020 3 1))))
+    (test-assert (not (date>=? (make-date 2020 2 2) (make-date 2020 2 3)))))
 
 ;; clock-time
 
-(test-group "clock-time"
+(test-group "Clock time"
     (test-assert (clock-time? (make-clock-time 23 0 11/10)))
     (test-error (make-clock-time 24 1 1))
     (test-error (make-clock-time -1 1 1))
@@ -143,5 +155,57 @@
       (test-equal 23 h)
       (test-equal 1 m)
       (test-equal 2 s)))
+
+;; moment
+
+(test-group "Moment constructors, getters"
+    (test-assert (moment? (make-moment (make-date 2025 1 1) 100)))
+    (test-error (make-moment #f 100))
+    (test-error (make-moment (make-date 2025 1 1) -1))
+    (test-error (make-moment (make-date 2025 1 1) 86401))
+
+    (test-assert (date=? (make-date 2025 1 1) (moment-date (make-moment (make-date 2025 1 1) 1))))
+    (test-equal 1 (moment-second-of-day (make-moment (make-date 2025 1 1) 1))))
+
+(test-group "Moment comparators"
+    (test-assert (not (moment=? (make-moment (make-date 2024 1 1) 1) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (not (moment=? (make-moment (make-date 2025 1 1) 2) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (moment=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 1)))
+
+    (test-assert (moment<? (make-moment (make-date 2024 1 1) 2) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (moment<? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 2)))
+    (test-assert (not (moment<? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (not (moment<? (make-moment (make-date 2026 1 1) 1) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (not (moment<? (make-moment (make-date 2025 1 1) 2) (make-moment (make-date 2025 1 1) 1))))
+
+    (test-assert (moment<=? (make-moment (make-date 2024 1 1) 2) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (moment<=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 2)))
+    (test-assert (moment<=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (not (moment<=? (make-moment (make-date 2026 1 1) 1) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (not (moment<=? (make-moment (make-date 2025 1 1) 2) (make-moment (make-date 2025 1 1) 1))))
+
+    (test-assert (moment>? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2024 1 1) 2)))
+    (test-assert (moment>? (make-moment (make-date 2025 1 1) 2) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (not (moment>? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 1))))
+    (test-assert (not (moment>? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2026 1 1) 1))))
+    (test-assert (not (moment>? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 2))))
+
+    (test-assert (moment>=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2024 1 1) 2)))
+    (test-assert (moment>=? (make-moment (make-date 2025 1 1) 2) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (moment>=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 1)))
+    (test-assert (not (moment>=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2026 1 1) 1))))
+    (test-assert (not (moment>=? (make-moment (make-date 2025 1 1) 1) (make-moment (make-date 2025 1 1) 2)))))
+
+(test-group "Timestamp constructors, getters"
+    (test-assert (timestamp? (make-timestamp 2020 1 1 10 0 0 (tz-timezone "Vilnius"))))
+    (test-assert (timestamp? (make-timestamp 2020 1 1 10 0 0 (tz-timezone "Vilnius") 0)))
+    (test-error (make-timestamp 2020 1 1 10 0 0 (tz-timezone "Vilnius") 1))
+    ;; clock is moved forward at 3:00, such time doesn't exist
+    (test-error (make-timestamp 2025 3 30 3 30 0 (tz-timezone "Vilnius")))
+    ;; clock is moved backwards at 4:00, this time happens twice, check if fold = 1 works
+    (test-assert (timestamp? (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 0)))
+    (test-assert (timestamp? (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 1)))
+    )
+
 
 (test-end)
