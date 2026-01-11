@@ -479,9 +479,12 @@
         (let ((timestamp (make-timestamp* date time timezone fold)))
           (validate-timestamp-time-in-timezone
               timestamp
+              (lambda _ #t)
               (lambda _ (date-error "date+clock-time->timestamp called with invalid local time for the given timezone" date time timezone fold))
               (lambda _ (date-error "date+clock-time->timestamp called with invalid fold value for given local time in the given timezone" date time timezone fold)))
-          (validate-timestamp-leapsecond timestamp (lambda _ #t))
+          (validate-timestamp-leapsecond timestamp
+              (lambda _ #t)
+              (lambda _ (date-error "date+clock-time->timestamp called with invalid (leap) second value" date time timezone fold)))
           timestamp))))
 
 ;; returns count of seconds (excluding leap) since 1970-01-01 in current timezone (ie, not UTC timezone)
@@ -493,33 +496,40 @@
 
 ;; not all hours / minutes are valid during transition between DST
 ;; if fold is 1, also tests if there is possible time overlap
-(define (validate-timestamp-time-in-timezone timestamp err-bad-time err-bad-fold)
+(define (validate-timestamp-time-in-timezone timestamp ok err-bad-time err-bad-fold)
     (let* ((local-timepoint (timestamp->local-timepoint timestamp))
            (tz (timestamp-timezone timestamp))
            (offset (find-offset tz local-timepoint))
            (fold (timestamp-fold timestamp)))
-      (when (= 0 (vector-length offset))
-          (err-bad-time))
-      (when (and (= 1 fold) (< (vector-length offset) 2))
-          (err-bad-fold))))
+      (cond
+        ((= 0 (vector-length offset)) (err-bad-time))
+        ((and (= 1 fold) (< (vector-length offset) 2)) (err-bad-fold))
+        (else (ok)))))
 
-(define (validate-timestamp-leapsecond timestamp err)
+(define (validate-timestamp-leapsecond timestamp ok err)
     ;; TODO
-    #t)
+    (ok))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Timezones
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (utc-offset-timezone dt)
-  (unless (dt? dt)
+  (unless (and (dt? dt)
+               (= 0 (dt-years dt))
+               (= 0 (dt-months dt))
+               (= 0 (dt-weeks dt))
+               (= 0 (dt-days dt))
+               (= 0 (dt-seconds dt)))
     (date-error "utc-offset-timezone called with invalid parameters" dt))
-  ;; TODO
-  #f)
+  (let ((h (dt-hours dt))
+        (m (dt-minutes dt)))
+    (create-static-timezone (+ (* 3600 h) (* 60 m)))))
 
 (define tzmap '())
 
 (define (tz-timezones)
+  ;; TODO
   '("Vilnius"))
 
 (define (tz-timezone name)
@@ -527,6 +537,7 @@
     (date-error "tz-timezone called with invalid parameters" name))
   (cond
     ((assoc name tzmap) => cdr)
+    ((not (member name (tz-timezones))) (date-error "tz-timezone called with invalid parameters" name))
     (else
       (let ((tz (load-timezone! name)))
         (set! tzmap (cons (cons name tz) tzmap))
@@ -535,6 +546,7 @@
 (define (load-timezone! name)
   (define port #f)
   (dynamic-wind
+    ;; TODO
     (lambda () (set! port (open-binary-input-file (string-append "./testdata/" name))))
     (lambda () (tzfile->timezone (read-tz-file port)))
     (lambda () (close-port port))))
@@ -543,6 +555,7 @@
   (create-timezone-from-tz-transitions (tzfile-time-transitions tzf)))
 
 (define (system-timezone)
+  ;; TODO
   (tz-timezone "Vilnius"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -550,7 +563,77 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-record-type <dt>
-  (make-dt)
+  (make-dt years months weeks days hours minutes seconds)
   dt?
-  ;; TODO
-  )
+  (years dt-years)
+  (months dt-months)
+  (weeks dt-weeks)
+  (days dt-days)
+  (hours dt-hours)
+  (minutes dt-minutes)
+  (seconds dt-seconds))
+
+(define (years-dt v)
+    (unless (integer? v)
+        (date-error "years-dt called with invalid parameters" v))
+    (make-dt v 0 0 0 0 0 0))
+
+(define (months-dt v)
+    (unless (integer? v)
+        (date-error "months-dt called with invalid parameters" v))
+    (make-dt 0 v 0 0 0 0 0))
+
+(define (weeks-dt v)
+    (unless (integer? v)
+        (date-error "weeks-dt called with invalid parameters" v))
+    (make-dt 0 0 v 0 0 0 0))
+
+(define (days-dt v)
+    (unless (integer? v)
+        (date-error "days-dt called with invalid parameters" v))
+    (make-dt 0 0 0 v 0 0 0))
+
+(define (hours-dt v)
+    (unless (integer? v)
+        (date-error "hours-dt called with invalid parameters" v))
+    (make-dt 0 0 0 0 v 0 0))
+
+(define (minutes-dt v)
+    (unless (integer? v)
+        (date-error "minutes-dt called with invalid parameters" v))
+    (make-dt 0 0 0 0 0 v 0))
+
+(define (seconds-dt v)
+    (unless (exact? v)
+        (date-error "seconds-dt called with invalid parameters" v))
+    (make-dt 0 0 0 0 0 0 v))
+
+(define (dt+ . dts)
+    (define (sum-component getter)
+        (fold (lambda (dt sum) (+ sum (getter dt)))
+              0
+              dts))
+    (for-each (lambda (obj)
+                (unless (dt? obj)
+                    (date-error "dt+ called with invalid parameters" dts)))
+               dts)
+    (make-dt
+        (sum-component dt-years)
+        (sum-component dt-months)
+        (sum-component dt-weeks)
+        (sum-component dt-days)
+        (sum-component dt-hours)
+        (sum-component dt-minutes)
+        (sum-component dt-seconds)))
+
+(define (dt-negate dt)
+    (unless (dt? v)
+        (date-error "dt-negate called with invalid parameters" dt))
+    (make-dt
+        (- (dt-years dt))
+        (- (dt-months dt))
+        (- (dt-weeks dt))
+        (- (dt-days dt))
+        (- (dt-hours dt))
+        (- (dt-minutes dt))
+        (- (dt-seconds dt))))

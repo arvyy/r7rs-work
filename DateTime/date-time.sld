@@ -95,6 +95,29 @@
         tz-timezone
         tz-timezones
 
-        ;;
+        ;; dt
+        years-dt
+        months-dt
+        weeks-dt
+        days-dt
+        hours-dt
+        minutes-dt
+        seconds-dt
+        dt-years
+        dt-months
+        dt-weeks
+        dt-days
+        dt-hours
+        dt-minutes
+        dt-seconds
+        dt+
+        dt-negate
+        ;; TODO
+        ;; date+
+        ;; timestamp+
+        ;; current-moment
+        ;; current-utc-timestamp
+        ;; current-system-timestamp
+
         )
     (include "date-time-impl.scm"))
