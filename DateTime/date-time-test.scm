@@ -207,5 +207,9 @@
     (test-assert (timestamp? (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 1)))
     )
 
+;; TODO
+
+(test-group "date+"
+    (test-assert (date=? (make-date 2020 12 31) (date+ (make-date 2021 1 1) (days-dt -1)))))
 
 (test-end)

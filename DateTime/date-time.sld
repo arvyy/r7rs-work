@@ -2,6 +2,7 @@
     (date-time)
     (import (scheme base)
             (scheme file)
+            (scheme division)
             (date-time timezone)
             (date-time tzfile)
             (gauche base)  ;; for debugging, TODO remove
@@ -112,8 +113,8 @@
         dt-seconds
         dt+
         dt-negate
+        date+
         ;; TODO
-        ;; date+
         ;; timestamp+
         ;; current-moment
         ;; current-utc-timestamp
