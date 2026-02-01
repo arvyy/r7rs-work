@@ -8,5 +8,6 @@
   (export timezone?
           create-static-timezone
           create-timezone-from-tz-transitions
-          find-offset)
+          find-offset/wall
+          find-offset/utc)
   (include "timezone.scm"))

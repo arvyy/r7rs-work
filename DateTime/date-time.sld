@@ -4,6 +4,7 @@
             (scheme file)
             (scheme division)
             (date-time timezone)
+            (date-time leapsecondsfile)
             (date-time tzfile)
             (gauche base)  ;; for debugging, TODO remove
             (scheme write) ;; for debugging, TODO remove
@@ -65,13 +66,11 @@
         make-timestamp
         date+clock-time->timestamp
         timestamp?
-        ;; TODO
-        ;; moment->timestamp
-        ;; timestamp->moment
-        ;; timestamp-in-timezone
-        ;; posix-time->utc-timestamp
-        ;; posix-time->utc-timestamp
-        ;; timestamp->utc-posix-time
+        moment->timestamp
+        timestamp->moment
+        timestamp-in-timezone
+        posix-time->utc-timestamp
+        timestamp->utc-posix-time
         timestamp-date
         timestamp-ymd
         timestamp-year
@@ -114,11 +113,10 @@
         dt+
         dt-negate
         date+
-        ;; TODO
-        ;; timestamp+
-        ;; current-moment
-        ;; current-utc-timestamp
-        ;; current-system-timestamp
+        timestamp+
+        current-moment
+        current-utc-timestamp
+        current-system-timestamp
 
         )
     (include "date-time-impl.scm"))

@@ -1,14 +1,19 @@
 (define-record-type <rules-timezone>
-    (rules-timezone rules)
+    (rules-timezone rules rules/utc)
     timezone?
     ;; rules is a vector of ranges, each entry is itself a vector: #(local-start local-end offset)
     ;; start is inclusive, end is exclusive
     ;; start and end can be #f if they denote unbound range, otherwise its a timespoint integer
+    ;; start and end in local time
     ;; offset is value in seconds of the offset from UTC
-    (rules rules))
+    (rules rules)
+    ;; like rules, except start and end in utc time
+    (rules/utc rules/utc))
 
 (define (create-static-timezone offset)
-    (rules-timezone (vector (vector #f #f offset))) )
+    (rules-timezone
+        (vector (vector #f #f offset))
+        (vector (vector #f #f offset))))
 
 (define (transition->local-timestamp t)
     (+ (time-transition-timepoint t) (time-transition-offset t)))
@@ -23,17 +28,28 @@
                           (t2 (vector-ref transitions 1)))
                       (vector-set! v 0 (vector #f (+ (time-transition-timepoint t2) (time-transition-offset t1)) (time-transition-offset t1)))
                       v))
+             (rules/utc (let ((v (make-vector (vector-length transitions)))
+                              (t1 (vector-ref transitions 0))
+                              (t2 (vector-ref transitions 1)))
+                          (vector-set! v 0 (vector #f t2 (time-transition-offset t1)))
+                          v))
              (i 1 (+ i 1))
              (l (vector-length transitions)))
-            ((>= i l) (rules-timezone rules))
+            ((>= i l) (rules-timezone rules rules/utc))
           (let* ((transition (vector-ref transitions i))
                  (start-point (+ (time-transition-timepoint transition) (time-transition-offset transition)))
                  (end-point (if (>= (+ 1 i) l)
                                 #f
                                 (+ (time-transition-timepoint (vector-ref transitions (+ i 1))) (time-transition-offset transition))))
                  (offset (time-transition-offset transition))
-                 (rule (vector start-point end-point offset)))
-            (vector-set! rules i rule)))))
+                 (rule (vector start-point end-point offset))
+                 (start-point/utc (time-transition-timepoint transition))
+                 (end-point/utc (if (>= (+ 1 i) l)
+                                    #f
+                                   (time-transition-timepoint (vector-ref transitions (+ i 1)))))
+                 (rule/utc (vector start-point/utc end-point/utc offset)))
+            (vector-set! rules i rule)
+            (vector-set! rules/utc i rule/utc)))))
 
 ;; returns -1 if given timepoint is before the rule range
 ;; returns 1 if given timepoint is after the rule range
@@ -61,7 +77,7 @@
               ((0)  midpoint)
               ((1)  (find-rule-index rules (+ 1 midpoint) end-range local-timepoint))))))
 
-(define (find-offset timezone local-timepoint)
+(define (find-offset/wall timezone local-timepoint)
     ;; test both value at index and adjacent ones in case of overlap
     (let* ((r (rules timezone))
            (index (find-rule-index r 0 (vector-length r) local-timepoint))
@@ -79,3 +95,8 @@
                     (vector (vector-ref r (+ index 1)))
                     (vector))))
       (vector-append t1 t2 t3)))
+
+(define (find-offset/utc timezone timepoint)
+    (let* ((r (rules/utc timezone))
+           (index (find-rule-index r 0 (vector-length r) timepoint)))
+      (vector (vector-ref  r index))))
