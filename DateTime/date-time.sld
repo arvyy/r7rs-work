@@ -95,6 +95,7 @@
         tz-timezones
 
         ;; dt
+        dt?
         years-dt
         months-dt
         weeks-dt

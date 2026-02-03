@@ -709,7 +709,7 @@
 
 (define (tz-timezones)
   ;; TODO
-  '("Vilnius"))
+  '("Europe/Vilnius" "America/New_York"))
 
 (define (tz-timezone name)
   (unless (string? name)
@@ -726,7 +726,7 @@
   (define port #f)
   (dynamic-wind
     ;; TODO
-    (lambda () (set! port (open-binary-input-file (string-append "./testdata/" name))))
+    (lambda () (set! port (open-binary-input-file (string-append "./testdata/timezones/" name))))
     (lambda () (tzfile->timezone (read-tz-file port)))
     (lambda () (close-port port))))
 
@@ -735,7 +735,7 @@
 
 (define (system-timezone)
   ;; TODO
-  (tz-timezone "Vilnius"))
+  (tz-timezone "Europe/Vilnius"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Time deltas
@@ -832,6 +832,9 @@
          ((d+) (dt-days dt))
          ((y) (+ y y+))
          ((y m) (add-months y m m+))
+         ((d) (let* ((leap? (leap-year? y))
+                     (max-days (days-in-month leap? m values error)))
+                (min d max-days)))
          ((date*) (add-days y m d (+ (* 7 w+) d+))))
       date*))
 
