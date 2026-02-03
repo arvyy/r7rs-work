@@ -29,8 +29,8 @@
 ;; offset returns (positive) diff between tai and utc. If leap? is #t, the offset is the 'next' offset, so after calculation the seconds part will 59 and will need to be added +1 afterwards
 (define (leapsecond-info/tai leapseconds tai-timestamp)
     (let* ((ntp-timestamp (+ tai-timestamp epoch-ntp-diff))
-           (datum-fn (lambda (e) (+ (car e) (cdr e))))
-           (index (find-index leapseconds 0 (vector-length leapseconds) ntp-timestamp datum-fn))
+           (datum-fn (lambda (e) (+ (car e) (cdr e) (- 1))))
+           (index (find-index leapseconds ntp-timestamp datum-fn))
            (e (vector-ref leapseconds index))
            (found-value (datum-fn e))
            (leap? (= found-value ntp-timestamp)))
@@ -44,19 +44,15 @@
 (define (leapsecond-info/utc leapseconds timestamp)
     (let* ((ntp-timestamp (+ timestamp epoch-ntp-diff))
            (datum-fn (lambda (e) (car e)))
-           (index (find-index leapseconds 0 (vector-length leapseconds) ntp-timestamp datum-fn))
-           (index (max 0 (- index 1)))
+           (index (find-index leapseconds ntp-timestamp datum-fn))
            (e (vector-ref leapseconds index))
            (found-value (datum-fn e))
-           (leap? (= found-value ntp-timestamp)))
+           (leap? (= found-value ntp-timestamp))
+           (e (if leap?
+                  (vector-ref leapseconds (max 0 (- index 1)))
+                  e)))
       (values leap? (cdr e))))
 
-(define (find-index leapseconds start end v datum-fn)
-    (if (= start end)
-        start
-        (let* ((mid (floor (/ (+ start end) 2)))
-               (value (datum-fn (vector-ref leapseconds mid))))
-          (cond
-              ((= mid v) mid)
-              ((< mid v) (find-index leapseconds (+ 1 mid) end v datum-fn))
-              ((> mid v) (find-index leapseconds start (- mid 1) v datum-fn))))))
+(define (find-index leapseconds v datum-fn)
+    (do ((i (- (vector-length leapseconds) 1) (- i 1)))
+        ((or (<= i 0) (<= (datum-fn (vector-ref leapseconds i)) v)) i)))

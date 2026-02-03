@@ -58,8 +58,8 @@
     (let ((t1 (vector-ref rule 0))
           (t2 (vector-ref rule 1)))
       (cond
-          ((< local-timepoint t1) -1)
-          ((>= local-timepoint t2) 1)
+          ((and t1 (< local-timepoint t1)) -1)
+          ((and t2 (>= local-timepoint t2)) 1)
           (else 0))))
 
 ;; binary search to find an index for a rule that matches given local-timepoint

@@ -30,7 +30,7 @@
         date-iso-week-year
         date-iso-weekday
 
-        date->iso8601
+        date->iso-8601
         date->mjd
         mjd->date
         date->rata-die
@@ -84,8 +84,7 @@
         timestamp-timezone
         timestamp-fold
         timestamp-timezone-offset
-        ;; TODO
-        ;; timestamp->iso-8601
+        timestamp->iso-8601
 
         ;; timezone
         timezone?

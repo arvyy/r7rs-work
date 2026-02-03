@@ -7,6 +7,12 @@
         (gauche base) ;; for debugging, TODO remove
         )
 
+(define (timestamp-equal? t1 t2)
+    (and (date=? (timestamp-date t1) (timestamp-date t2))
+         (= (timestamp-hour t1) (timestamp-hour t2))
+         (= (timestamp-minute t1) (timestamp-minute t2))
+         (= (timestamp-second t1) (timestamp-second t2))
+         (eq? (timestamp-timezone t1) (timestamp-timezone t2))))
 
 (test-begin "Date-Time")
 
@@ -56,12 +62,12 @@
       (test-equal 1 m)
       (test-equal 2 d)))
 
-(test-group "Date->ISO8601"
-    (test-equal "2020-01-01" (date->iso8601 (make-date 2020 1 1)))
-    (test-equal "2020-11-12" (date->iso8601 (make-date 2020 11 12)))
-    (test-equal "0000-01-01" (date->iso8601 (make-date 0 1 1)))
-    (test-equal "-0001-01-01" (date->iso8601 (make-date -1 1 1)))
-    (test-equal "99999-01-01" (date->iso8601 (make-date 99999 1 1))))
+(test-group "Date->ISO-8601"
+    (test-equal "2020-01-01" (date->iso-8601 (make-date 2020 1 1)))
+    (test-equal "2020-11-12" (date->iso-8601 (make-date 2020 11 12)))
+    (test-equal "0000-01-01" (date->iso-8601 (make-date 0 1 1)))
+    (test-equal "-0001-01-01" (date->iso-8601 (make-date -1 1 1)))
+    (test-equal "99999-01-01" (date->iso-8601 (make-date 99999 1 1))))
 
 (test-group "Week & weekday calculation"
     (test-equal 0 (date-weekday (make-date 2025 10 12)))
@@ -209,6 +215,11 @@
     (test-assert (timestamp? (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 0)))
     (test-assert (timestamp? (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 1)))
 
+    ;; invalid leapsecond
+    (test-error (make-timestamp 2015 7 1 2 58 60 (tz-timezone "Vilnius")))
+    ;; valid leapsecond
+    (test-assert (timestamp? (make-timestamp 2015 7 1 2 59 60 (tz-timezone "Vilnius"))))
+
     (test-assert (date=? (make-date 2020 1 1) (timestamp-date (make-timestamp 2020 1 1 10 0 0 (tz-timezone "Vilnius")))))
     (test-equal 2020 (timestamp-year (make-timestamp 2020 1 1 10 0 0 (tz-timezone "Vilnius"))))
     (test-equal 1 (timestamp-month (make-timestamp 2020 1 2 10 0 0 (tz-timezone "Vilnius"))))
@@ -234,10 +245,29 @@
     (test-equal 1 (timestamp-fold (make-timestamp 2025 10 26 3 30 0 (tz-timezone "Vilnius") 1))))
 
 (test-group "Moment to/from timestamp conversion"
-    ;;TODO
-    #t)
+    ;; non-leap case
+    (let ((moment (make-moment (make-date 2026 2 3) (+ (* 1 3600) (* 2 60) 3 37)))
+          (timestamp (make-timestamp 2026 2 3 3 2 3 (tz-timezone "Vilnius"))))
+      (test-assert (moment=? moment (timestamp->moment timestamp)))
+      (test-assert (timestamp-equal? timestamp (moment->timestamp moment (tz-timezone "Vilnius")))))
+
+    ;; leap case
+    (let ((moment (make-moment (make-date 2015 7 1) (+ 35)))
+          (timestamp (make-timestamp 2015 7 1 2 59 (+ 60) (tz-timezone "Vilnius"))))
+      (test-assert (moment=? moment (timestamp->moment timestamp)))
+      (test-assert (timestamp-equal? timestamp (moment->timestamp moment (tz-timezone "Vilnius"))))))
 
 (test-group "Timestamp to/from posix"
+    (let ((t1 (make-timestamp 2015 6 30 23 59 59 utc-timezone))
+          (t2 (make-timestamp 2015 6 30 23 59 60 utc-timezone))
+          (t3 (make-timestamp 2015 7 1 2 59 59 (tz-timezone "Vilnius")))
+          (posix 1435708799))
+      (test-equal posix (timestamp->utc-posix-time t1))
+      (test-equal posix (timestamp->utc-posix-time t2))
+      (test-equal posix (timestamp->utc-posix-time t3))
+      (test-assert (timestamp-equal? t1 (posix-time->utc-timestamp posix)))))
+
+(test-group "Timestamp timezone conversion"
     ;; TODO
     #t)
 

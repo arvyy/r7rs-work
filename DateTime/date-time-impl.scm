@@ -21,7 +21,7 @@
 
 ;; for debuggging, TODO remove
 (define-method write-object ((date <date>) port)
-  (write (date->iso8601 date) port))
+  (write (date->iso-8601 date) port))
 
 (define-method write-object ((err <date-time-error>) port)
   (write (cons (date-time-error-message err) (date-time-error-args err)) port))
@@ -180,9 +180,9 @@
         (string-append pad str))
       str))
 
-(define (date->iso8601 date)
+(define (date->iso-8601 date)
   (unless (date? date)
-    (date-error "date-iso8601 called with invalid parameters" date))
+    (date-error "date->iso-8601 called with invalid parameters" date))
   (let-values (((y m d) (date-ymd date)))
     (string-append
       (if (< y 0) "-" "")
@@ -425,6 +425,10 @@
     (timezone timestamp-timezone)
     (fold timestamp-fold))
 
+;; for debuggging, TODO remove
+(define-method write-object ((timestamp <timestamp>) port)
+  (write (timestamp->iso-8601 timestamp) port))
+
 (define (timestamp-ymd timestamp)
     (unless (timestamp? timestamp)
         (date-error "timestamp-ymd called with invalid parameters" timestamp))
@@ -502,9 +506,9 @@
            (seconds (moment-second-of-day moment))
            (days (- (date->rata-die date) unix-epoch-rd))
            (timepoint (+ (* days 86400) seconds))
-           (leap?+offset (call-wtih-values
-                          (lambda () (leapsecond-info/tai (leap-seconds) timepoint))
-                          cons))
+           (leap?+offset (call-with-values
+                             (lambda () (leapsecond-info/tai (leap-seconds) timepoint))
+                             cons))
            (leap? (car leap?+offset))
            (offset (cdr leap?+offset))
            (seconds (- seconds offset))
@@ -531,7 +535,7 @@
            (offset (call-with-values
                      (lambda () (leapsecond-info/utc (leap-seconds) timepoint))
                      (lambda (leap? offset) offset)))
-           (seconds (+ (* (timestamp-hour timestamp) 3600) (* (timestamp-minute timestamp) 60) (timestamp-second timestamp)))
+           (seconds (+ (* (timestamp-hour timestamp) 3600) (* (timestamp-minute timestamp) 60) (timestamp-second timestamp) offset))
            (date (timestamp-date timestamp))
            (date-diff (floor-quotient seconds 86400))
            (seconds (floor-remainder seconds 86400))
@@ -595,8 +599,8 @@
 (define (validate-timestamp-leapsecond timestamp ok err)
     (if (< (timestamp-second timestamp) 60)
         (ok)
-        (let ((timestamp (timestamp-in-utc timestamp))
-              (timepoint (floor-quotient (timestamp->local-timepoint timestamp) 1)))
+        (let* ((timestamp (timestamp-in-utc timestamp))
+               (timepoint (floor-quotient (timestamp->local-timepoint timestamp) 1)))
           (define-values (leap? offset) (leapsecond-info/utc (leap-seconds) timepoint))
           (if leap?
               (ok)
@@ -630,12 +634,7 @@
               timestamp))))
 
 (define (timestamp-in-utc timestamp)
-    (let* ((local-timepoint (timestamp->local-timepoint timestamp))
-           (tz (timestamp-timezone timestamp))
-           (fold (timestamp-fold timestamp))
-           (offsets-vec (find-offset/wall tz local-timepoint))
-           (offset (vector-ref (vector-ref offsets-vec fold) 2))
-           (dt (timezone-offset-seconds->dt offset))
+    (let* ((dt (timestamp-timezone-offset timestamp))
            (dt (dt-negate dt))
            (timestamp (timestamp+/no-rules timestamp dt)))
       (make-timestamp* (timestamp-date timestamp)
@@ -650,6 +649,33 @@
            (seconds (truncate-remainder seconds 60))
            (dt (dt+ (hours-dt hours) (minutes-dt minutes) (seconds-dt seconds))))
       dt))
+
+(define (timestamp-timezone-offset timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp-timezone-offset called with invalid parameters" timestamp))
+    (let* ((local-timepoint (timestamp->local-timepoint timestamp))
+           (tz (timestamp-timezone timestamp))
+           (fold (timestamp-fold timestamp))
+           (offsets-vec (find-offset/wall tz local-timepoint))
+           (offset (vector-ref (vector-ref offsets-vec fold) 2))
+           (dt (timezone-offset-seconds->dt offset)))
+      dt))
+
+(define (timestamp->iso-8601 timestamp)
+    (unless (timestamp? timestamp)
+        (date-error "timestamp->iso-8601 called with invalid parameters" timestamp))
+    (string-append
+        (date->iso-8601 (timestamp-date timestamp))
+        "T"
+        (left-pad (number->string (timestamp-hour timestamp)) #\0 2)
+        ":"
+        (left-pad (number->string (timestamp-minute timestamp)) #\0 2)
+        ":"
+        ;; TODO second formatting
+        (left-pad (number->string (timestamp-second timestamp)) #\0 2)
+        ;; TODO timezone formatting
+        "_"
+        (number->string (dt-hours (timestamp-timezone-offset timestamp)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Timezones
