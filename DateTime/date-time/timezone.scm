@@ -31,7 +31,7 @@
              (rules/utc (let ((v (make-vector (vector-length transitions)))
                               (t1 (vector-ref transitions 0))
                               (t2 (vector-ref transitions 1)))
-                          (vector-set! v 0 (vector #f t2 (time-transition-offset t1)))
+                          (vector-set! v 0 (vector #f (time-transition-timepoint t2) (time-transition-offset t1)))
                           v))
              (i 1 (+ i 1))
              (l (vector-length transitions)))

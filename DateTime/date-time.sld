@@ -5,11 +5,7 @@
             (scheme division)
             (date-time timezone)
             (date-time leapsecondsfile)
-            (date-time tzfile)
-            (gauche base)  ;; for debugging, TODO remove
-            (scheme write) ;; for debugging, TODO remove
-            ;;
-            )
+            (date-time tzfile))
     (export
         ;; error raised on invalid method calls
         ;; not part of spec

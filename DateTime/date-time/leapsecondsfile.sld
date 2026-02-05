@@ -3,7 +3,6 @@
   (date-time leapsecondsfile)
 
   (import
-    (gauche base)  ;; for debugging, TODO remove
     (scheme base)
     (scheme read))
 

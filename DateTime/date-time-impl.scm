@@ -19,13 +19,6 @@
     (month date-month)
     (day date-day))
 
-;; for debuggging, TODO remove
-(define-method write-object ((date <date>) port)
-  (write (date->iso-8601 date) port))
-
-(define-method write-object ((err <date-time-error>) port)
-  (write (cons (date-time-error-message err) (date-time-error-args err)) port))
-
 (define (days-in-month is-leap-year month succ fail)
   (case month
       ((1 3 5 7 8 10 12) (succ 31))
@@ -425,10 +418,6 @@
     (timezone timestamp-timezone)
     (fold timestamp-fold))
 
-;; for debuggging, TODO remove
-(define-method write-object ((timestamp <timestamp>) port)
-  (write (timestamp->iso-8601 timestamp) port))
-
 (define (timestamp-ymd timestamp)
     (unless (timestamp? timestamp)
         (date-error "timestamp-ymd called with invalid parameters" timestamp))
@@ -512,6 +501,9 @@
            (leap? (car leap?+offset))
            (offset (cdr leap?+offset))
            (seconds (- seconds offset))
+           (seconds-full (floor seconds))
+           (seconds-frac (- seconds seconds-full))
+           (seconds seconds-full)
            (date-diff (floor-quotient seconds 86400))
            (date (if (= date-diff 0)
                      date
@@ -521,6 +513,7 @@
            (seconds (floor-remainder seconds 3600))
            (minutes (floor-quotient seconds 60))
            (seconds (floor-remainder seconds 60))
+           (seconds (+ seconds seconds-frac))
            (seconds (if leap?
                         (+ 1 seconds)
                         seconds))
@@ -531,14 +524,18 @@
     (unless (timestamp? timestamp)
         (data-error "timestamp->moment called with invalid parameters" timestamp))
     (let* ((timestamp (timestamp-in-utc timestamp))
-           (timepoint (floor-quotient (timestamp->local-timepoint timestamp) 1))
+           (timepoint (floor (timestamp->local-timepoint timestamp)))
            (offset (call-with-values
                      (lambda () (leapsecond-info/utc (leap-seconds) timepoint))
                      (lambda (leap? offset) offset)))
            (seconds (+ (* (timestamp-hour timestamp) 3600) (* (timestamp-minute timestamp) 60) (timestamp-second timestamp) offset))
+           (seconds-full (floor seconds))
+           (seconds-frac (- seconds seconds-full))
+           (seconds seconds-full)
            (date (timestamp-date timestamp))
            (date-diff (floor-quotient seconds 86400))
            (seconds (floor-remainder seconds 86400))
+           (seconds (+ seconds seconds-frac))
            (date (if (= date-diff 0)
                      date
                      (date+ date (days-dt date-diff)))))
@@ -600,7 +597,7 @@
     (if (< (timestamp-second timestamp) 60)
         (ok)
         (let* ((timestamp (timestamp-in-utc timestamp))
-               (timepoint (floor-quotient (timestamp->local-timepoint timestamp) 1)))
+               (timepoint (floor (timestamp->local-timepoint timestamp))))
           (define-values (leap? offset) (leapsecond-info/utc (leap-seconds) timepoint))
           (if leap?
               (ok)
@@ -662,6 +659,30 @@
       dt))
 
 (define (timestamp->iso-8601 timestamp)
+    (define (format-second s)
+        (let* ((full (round s))
+               (full-str (left-pad (number->string full) #\0 2))
+               (frac (- s full))
+               (has-frac (not (= 0 frac))))
+          (string-append
+              full-str
+              (if has-frac "." "")
+              (if has-frac (format-second-frac frac) ""))))
+    (define (format-second-frac n)
+        (do ((digits (round (* 1000000000 n)) (/ digits 10)))
+            ((> (floor-remainder digits 10) 0) (number->string digits))))
+    (define (format-tz dt)
+        (unless (= 0 (dt-seconds dt))
+            (date-error "timestamp->iso-8601 called with timezone that has second offset" timestamp))
+        (if (and (= 0 (dt-hours dt))
+                 (= 0 (dt-minutes dt)))
+            "Z"
+            (let ((sign (if (< (dt-hours dt) 0) "-" "+")))
+                        (string-append
+                            sign
+                            (left-pad (number->string (abs (dt-hours dt))) #\0 2)
+                            ":"
+                            (left-pad (number->string (abs (dt-minutes dt))) #\0 2)))))
     (unless (timestamp? timestamp)
         (date-error "timestamp->iso-8601 called with invalid parameters" timestamp))
     (string-append
@@ -671,11 +692,8 @@
         ":"
         (left-pad (number->string (timestamp-minute timestamp)) #\0 2)
         ":"
-        ;; TODO second formatting
-        (left-pad (number->string (timestamp-second timestamp)) #\0 2)
-        ;; TODO timezone formatting
-        "_"
-        (number->string (dt-hours (timestamp-timezone-offset timestamp)))))
+        (format-second (timestamp-second timestamp))
+        (format-tz (timestamp-timezone-offset timestamp))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Timezones
@@ -715,6 +733,7 @@
   (unless (string? name)
     (date-error "tz-timezone called with invalid parameters" name))
   (cond
+    ((equal? "Etc/UTC" name) utc-timezone)
     ((assoc name tzmap) => cdr)
     ((not (member name (tz-timezones))) (date-error "tz-timezone called with invalid parameters" name))
     (else
@@ -883,7 +902,15 @@
            (hours (floor-quotient minutes 60))
            (minutes (floor-remainder minutes 60))
            (clock (make-clock-time hours minutes (clock-time-second clock)))
-           (timestamp (date+clock-time->timestamp date clock (timestamp-timezone timestamp)))
+           ;; need to check the seconds value is valid in new timestamp, in case initial timestamp was on the leap second
+           (timestamp (let* ((t (make-timestamp* date clock (timestamp-timezone timestamp) 0))
+                             (valid? (validate-timestamp-leapsecond t (lambda _ #t) (lambda _ #f))))
+                        (if valid?
+                            t
+                            (make-timestamp* date
+                                             (make-clock-time hours minutes (- (clock-time-second clock) 1))
+                                             (timestamp-timezone timestamp)
+                                             0))))
            ;; seconds component left. If non zero, do calculation in TAI and convert back to handle potential leaps
            (timestamp (if (= 0 (dt-seconds dt))
                           timestamp
@@ -894,8 +921,12 @@
     (let* ((date (moment-date moment))
            (second (moment-second-of-day moment))
            (second (+ second seconds+))
+           (second-full (floor second))
+           (second-frac (- second second-full))
+           (second second-full)
            (days+ (floor-quotient second 86400))
            (second (floor-remainder second 86400))
+           (second (+ second second-frac))
            (date (if (= 0 days+)
                      date
                      (date+ date (days-dt days+)))))
@@ -913,6 +944,9 @@
            (seconds (if leap?
                         (- seconds 1)
                         seconds))
+           (seconds-full (floor seconds))
+           (seconds-frac (- seconds seconds-full))
+           (seconds seconds-full)
            (days-diff (floor-quotient seconds 86400))
            (date (if (= days-diff 0)
                      date
@@ -922,6 +956,7 @@
            (seconds (floor-remainder seconds 3600))
            (minutes (floor-quotient seconds 60))
            (seconds (floor-remainder seconds 60))
+           (seconds (+ seconds seconds-frac))
            (seconds (if leap?
                         (+ seconds 1)
                         seconds))

@@ -2,9 +2,7 @@
 ;; using local time
 (define-library (date-time timezone)
   (import (scheme base)
-          (date-time tzfile)
-          (gauche base)  ;; for debugging, TODO remove
-          )
+          (date-time tzfile))
   (export timezone?
           create-static-timezone
           create-timezone-from-tz-transitions
