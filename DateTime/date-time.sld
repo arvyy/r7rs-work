@@ -1,6 +1,8 @@
 (define-library
     (date-time)
     (import (scheme base)
+            (scheme case-lambda)
+            (scheme list)
             (scheme file)
             (scheme division)
             (date-time timezone)
